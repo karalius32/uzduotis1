@@ -1,0 +1,10 @@
+libtorch label segmentation/.vs/
+libtorch label segmentation/libtorch label segmentation/images_copy/
+libtorch label segmentation/libtorch label segmentation/libtorch label segmentation.dir/
+libtorch label segmentation/libtorch label segmentation/x64/
+pytorch label segmentation/data/
+pytorch label segmentation/data_for_yolo/
+pytorch label segmentation/train28/
+pytorch label segmentation/best.pt
+pytorch label segmentation/best.torchscript
+libtorch label segmentation/libtorch label segmentation/best.torchscript
