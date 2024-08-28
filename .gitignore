@@ -8,3 +8,25 @@ pytorch label segmentation/train28/
 pytorch label segmentation/best.pt
 pytorch label segmentation/best.torchscript
 libtorch label segmentation/libtorch label segmentation/best.torchscript
+libtorch label segmentation/libtorch label segmentation/best_n.torchscript
+libtorch label segmentation/libtorch label segmentation/best_s.torchscript
+libtorch label segmentation/libtorch label segmentation/deeplab_exported.torchscript
+libtorch label segmentation/libtorch label segmentation/output_0.pt
+libtorch label segmentation/libtorch label segmentation/tensor_output.txt
+libtorch label segmentation/libtorch label segmentation/prototypes.pt
+libtorch label segmentation/libtorch label segmentation/tensor_vector.pt
+libtorch label segmentation/libtorch label segmentation/unet_exported.torchscript
+pytorch deeplab/data/
+pytorch label segmentation/best_n.torchscript
+pytorch label segmentation/best_n.pt
+pytorch label segmentation/converted_image.pt
+pytorch label segmentation/output_0.pt
+pytorch label segmentation/prototypes.pt
+pytorch label segmentation/yolov8n.pt
+pytorch label segmentation/yolov8n-seg.pt
+pytorch label segmentation/ultralytics/
+pytorch unet/deeplab_exported.torchscript
+pytorch unet/my_checkpoint.pth.tar
+pytorch unet/unet_exported.torchscript
+pytorch unet/data/
+pytorch unet/saved_images/

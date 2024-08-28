@@ -5,31 +5,78 @@
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <string>
 #include "helper.h"
+#include "helper_new.h"
 
-std::vector<cv::Mat> ReadImages(std::string folderPath);
-std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, cv::Size modelInputSize, torch::DeviceType deviceType, int ch);
-void Predict(std::vector<torch::Tensor> images, torch::jit::script::Module model);
+using std::cout;
+using std::endl;
+
+void TestYoloModel(const char* path, std::vector<cv::Mat> images, std::string name);
+std::vector<cv::Mat> ReadImages(std::string folderPath, cv::Size modelInputSize);
+std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::DeviceType deviceType, int ch);
+void Predict_YOLO(std::vector<cv::Mat> images, torch::jit::script::Module model);
+void Predict_UNET(std::vector<cv::Mat> images, torch::jit::script::Module model);
+void TestUnetModel(const char* path, std::vector<cv::Mat> images, std::string name);
+std::vector<std::vector<cv::Mat>> TorchUnet_PredictMasks(std::vector<cv::Mat> images);
 
 int main() 
 {
-	const char* MODEL_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\best.torchscript";
+	const char* MODEL_YOLOV8N_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\best_n.torchscript";
+	const char* MODEL_YOLOV8S_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\best_s.torchscript";
+	const char* MODEL_UNET_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\unet_exported.torchscript";
 	const char* IMAGES_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\images";
 
-	std::vector<cv::Mat> images = ReadImages(IMAGES_PATH);
-	std::vector<torch::Tensor> imageTensorsRGB = PreprocessImages(images, cv::Size(960, 960), at::kCUDA, 3);
-	std::vector<torch::Tensor> imageTensorsGRAY = PreprocessImages(images, cv::Size(960, 960), at::kCUDA, 1);
+	std::vector<cv::Mat> images = ReadImages(IMAGES_PATH, cv::Size(960, 960));
 
-	torch::jit::script::Module model;
-	model = torch::jit::load(MODEL_PATH, at::kCUDA);
-	model.eval();
+	TestYoloModel(MODEL_YOLOV8N_PATH, images, "yolov8n (3.4M params): ");
+	TestYoloModel(MODEL_YOLOV8S_PATH, images, "yolov8s (11.8M params): ");
+	TestUnetModel(MODEL_UNET_PATH, images, "UNET (31M params): ");
 
-	Predict(imageTensorsRGB, model);
 
 	return 0;
 }
 
-std::vector<cv::Mat> ReadImages(std::string folderPath)
+void TestYoloModel(const char* path, std::vector<cv::Mat> images, std::string name)
+{
+	torch::jit::script::Module model;
+	model = torch::jit::load(path, at::kCUDA);
+	model.eval();
+
+	cout << name << endl;
+	for (int i = 0; i < 10; i++)
+	{
+		cout << i + 1 << ": " << endl;
+		Predict_YOLO(images, model);
+		cout << "--------------------" << endl;
+	}
+
+	cout << endl;
+
+	model.to(at::kCPU);
+}
+
+void TestUnetModel(const char* path, std::vector<cv::Mat> images, std::string name)
+{
+	torch::jit::script::Module model;
+	model = torch::jit::load(path, at::kCUDA);
+	model.eval();
+
+	cout << name << endl;
+	for (int i = 0; i < 10; i++)
+	{
+		cout << i + 1 << ": " << endl;
+		Predict_UNET(images, model);
+		cout << "--------------------" << endl;
+	}
+
+	cout << endl;
+
+	model.to(at::kCPU);
+}
+
+std::vector<cv::Mat> ReadImages(std::string folderPath, cv::Size modelInputSize)
 {
 	std::vector<std::string> imageNames;
 	cv::glob(folderPath + "/*.*", imageNames);
@@ -38,13 +85,14 @@ std::vector<cv::Mat> ReadImages(std::string folderPath)
 	for (std::string imageName : imageNames)
 	{
 		cv::Mat inputImage = cv::imread(imageName);
+		cv::resize(inputImage, inputImage, modelInputSize); // resizing
 		images.push_back(inputImage);
 	}
 
 	return images;
 }
 
-std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, cv::Size modelInputSize, torch::DeviceType deviceType, int ch)
+std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::DeviceType deviceType, int ch)
 {
 	int colorConversion = cv::COLOR_BGR2GRAY;
 	int colorType = CV_32FC1;
@@ -58,65 +106,38 @@ std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, cv::Siz
 	std::vector<torch::Tensor> imageTensors;
 	for (cv::Mat image : images)
 	{
-		cv::resize(image, image, modelInputSize); // resizing
 		cv::cvtColor(image, image, colorConversion); // converting color
-		image.convertTo(image, colorType, 1.0f / 255.0f); // scaling
-		torch::Tensor imageTensor = torch::from_blob(image.data, { 1, modelInputSize.width, modelInputSize.height, ch }).to(deviceType); // converting to tensor
-		imageTensor = imageTensor.permute({ 0, 3, 1, 2 }).contiguous();
-		std::cout << imageTensor.sizes() << std::endl;
+		torch::Tensor imageTensor = torch::from_blob(image.data, { image.rows, image.cols, ch }, torch::kByte).to(deviceType); // converting to tensor
+		imageTensor = imageTensor.toType(torch::kFloat32).div(255);
+		imageTensor = imageTensor.permute({ 2, 0, 1 });
+		imageTensor = imageTensor.unsqueeze(0);
+		imageTensor = imageTensor.contiguous();
 		imageTensors.push_back(imageTensor);
 	}
 
 	return imageTensors;
 }
 
-void PreprocessOneOutput(torch::Tensor output0, torch::Tensor prototypes)
+std::tuple<std::vector<torch::Tensor>, std::vector<std::vector<torch::Tensor>>> ProcessOneOutput(torch::Tensor output0, torch::Tensor prototypes)
 {
-	int nb_class = output0.size(0) - 4 - prototypes.size(0);
-	std::vector<std::vector<std::vector<float>>> l_class(nb_class);
-	torch::Tensor output_0_T = output0.transpose(0, 1);
-	float threshold_detection = 0.8;
-	float threshold_iou = 0.5;
+	// Perform non-maximum suppression (NMS)
+	std::vector<torch::Tensor> l_class_NMS = helper::NonMaxSuppression(output0, prototypes, 0.5, 0.5);
+	// Get segmentation masks
+	std::tuple<std::vector<std::vector<torch::Tensor>>, std::vector<std::vector<int>>, std::vector<std::vector<float>>> segmentationOutput = helper::GetSegmentationMasks(l_class_NMS, prototypes, { 960, 960 });
+	std::vector<std::vector<torch::Tensor>> masks = std::get<0>(segmentationOutput);
 
-	for (int i = 0; i < output_0_T.size(0); i++) 
-	{
-		torch::Tensor detection = output_0_T[i];
-
-		torch::Tensor conf = detection.slice(0, 4, nb_class + 4);
-		torch::Tensor max_conv = torch::max(conf);
-		int argmax_conv = torch::argmax(conf).item<int>();
-
-		if (max_conv.item<float>() > threshold_detection) 
-		{
-			std::vector<float> combined;
-			auto detection_head = detection.slice(0, 0, 4).to(torch::kCPU).data_ptr<float>();
-			auto max_conv_val = max_conv.item<float>();
-			auto detection_tail = detection.slice(0, 4 + nb_class).to(torch::kCPU).data_ptr<float>();
-
-			combined.insert(combined.end(), detection_head, detection_head + 4);
-			combined.push_back(max_conv_val);
-			combined.insert(combined.end(), detection_tail, detection_tail + detection.size(0) - (4 + nb_class));
-
-			l_class[argmax_conv].emplace_back(combined);
-		}
-	}
-
-	std::vector<torch::Tensor> l_class_NMS;
-	for (const auto& clas : l_class) {
-		l_class_NMS.push_back(helper::nms(clas, threshold_iou));
-	}
-
-	std::cout << l_class_NMS.size() << std::endl;
-	std::cout << l_class_NMS[0].sizes() << std::endl;
+	return { l_class_NMS, masks };
 }
 
-void Predict(std::vector<torch::Tensor> imageTensors, torch::jit::script::Module model)
+void Predict_YOLO(std::vector<cv::Mat> images, torch::jit::script::Module model)
 {
+	std::vector<torch::Tensor> imageTensors = PreprocessImages(images, at::kCUDA, 3);
+
 	// Prepare the tensors for model input
 	torch::Tensor input = torch::cat(imageTensors, 0);
-	std::cout << input.sizes() << std::endl;
 	std::vector<torch::jit::IValue> inputs{ input };
 	
+	auto t1 = std::chrono::high_resolution_clock::now();
 	// Forward pass
 	torch::jit::IValue output = model.forward(inputs);
 
@@ -124,6 +145,92 @@ void Predict(std::vector<torch::Tensor> imageTensors, torch::jit::script::Module
 	torch::Tensor output_0_all = output.toTuple()->elements()[0].toTensor().to(at::kCPU);
 	torch::Tensor prototypes_all = output.toTuple()->elements()[1].toTensor().to(at::kCPU);
 
-	PreprocessOneOutput(output_0_all[0], prototypes_all[1]);
+	auto t2 = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+	cout << "Inference duration: " << duration << "ms" << endl;
+
+	int imgIndex = 0;
+	std::tuple<std::vector<torch::Tensor>, std::vector<std::vector<torch::Tensor>>> results = ProcessOneOutput(output_0_all[imgIndex], prototypes_all[imgIndex]);
+
+	auto t3 = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
+	cout << "Postprocessing duration: " << duration << "ms" << endl;
+
+	//helper::DrawResults(images[imgIndex], results);
 }
 
+void Predict_UNET(std::vector<cv::Mat> images, torch::jit::script::Module model)
+{
+	std::vector<torch::Tensor> imageTensors = PreprocessImages(images, at::kCUDA, 1);
+
+	// Prepare the tensors for model input
+	torch::Tensor input = torch::cat(imageTensors, 0);
+	std::vector<torch::jit::IValue> inputs{ input };
+
+	// Forward pass
+	auto t1 = std::chrono::high_resolution_clock::now();
+
+	torch::Tensor output = model.forward(inputs).toTensor().to(at::kCPU);
+
+	auto t2 = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+	cout << "Inference duration: " << duration << "ms" << endl;
+
+	// Process the output
+}
+
+std::vector<std::vector<cv::Mat>> TorchUnet_PredictMasks(std::vector<cv::Mat> images)
+{
+	const char* MODEL_UNET_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\unet_exported.torchscript";
+	torch::jit::script::Module net;
+	net = torch::jit::load(MODEL_UNET_PATH, at::kCUDA);
+	net.eval();
+
+	std::vector<std::vector<cv::Mat>> output;
+
+	std::vector<torch::Tensor> imageTensors;
+	for (const auto& image : images) 
+	{
+		cv::Mat resized;
+		cv::resize(image, resized, cv::Size(960, 960));
+		cv::cvtColor(resized, resized, cv::COLOR_BGR2GRAY);
+
+		torch::Tensor tensorImage = torch::from_blob(resized.data, { 1, resized.rows, resized.cols, resized.channels() }, torch::kByte).to(at::kCUDA);
+		tensorImage = tensorImage.permute({ 0, 3, 1, 2 });
+		tensorImage = tensorImage.toType(torch::kFloat32).div(255);
+		imageTensors.push_back(tensorImage);
+	}
+
+	torch::Tensor input = torch::cat(imageTensors, 0);
+	std::vector<torch::jit::IValue> inputs{ input };
+
+	auto t1 = std::chrono::high_resolution_clock::now();
+
+	auto pred = net.forward(inputs).toTensor().to(torch::kCPU);
+
+	auto predAccessor = pred.accessor<float, 4>();
+	int batches = predAccessor.size(0);
+	int height = predAccessor.size(2);
+	int width = predAccessor.size(3);
+	int classes = predAccessor.size(1);
+	
+
+	for (int i = 0; i < batches; ++i) {
+		std::vector<cv::Mat> prediction;
+		cv::Mat probImage(cv::Size(width, height), CV_32FC(classes), predAccessor[i].data());
+		std::vector<cv::Mat> splitProbImages;
+		cv::split(probImage, splitProbImages);
+		for (int j = 0; j < classes; ++j) {
+			cv::Mat normPrediction;
+			splitProbImages[j].convertTo(normPrediction, CV_8UC1, 255.0);
+			prediction.push_back(normPrediction);
+		}
+		output.push_back(prediction);
+	}
+
+	auto t2 = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+	cout << "Inference duration: " << duration << "ms" << endl;
+
+	return output;
+}
