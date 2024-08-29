@@ -5,6 +5,7 @@ import torch
 from torch import nn
 import torchvision
 import os
+from matplotlib import pyplot as plt
 
 
 # Hyperparameters
@@ -12,21 +13,22 @@ DEVICE = "cuda"
 IMAGE_WIDTH = 960
 IMAGE_HEIGHT = 960
 CLASSES_N = 2 # 0 - background, 1 - label
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.003
 EPOCHS = 10
 BATCH_SIZE = 4
 CHECKPOINT_PATH = "saved_models/"
+LOAD_STATE_DICT = True
+STATE_DICT_PATH = "saved_models/model_1.pth.tar"
 
 
 def evaluate_model(model, dataloader, loss_fn):
     model.eval()
     running_loss = 0
     total_iou = 0
-    total_samples = 0
 
     with torch.no_grad():
         for images, masks in dataloader:
-            images, masks = images.to(DEVICE), masks.to(DEVICE).long().squeeze(1)
+            images, masks = images.to(DEVICE), masks.to(DEVICE).squeeze(1)
 
             # Forward pass
             outputs = model(images)["out"]
@@ -35,12 +37,11 @@ def evaluate_model(model, dataloader, loss_fn):
 
             # Calculate IoU
             preds = torch.argmax(outputs, dim=1)
-            iou = (preds & masks).float().sum() / (preds | masks).float().sum()
+            iou = (preds & masks).sum() / (preds | masks).sum()
             total_iou += iou.item()
-            total_samples += images.size(0)
     
     avg_loss = running_loss / len(dataloader)
-    avg_iou = total_iou / total_samples
+    avg_iou = total_iou / len(dataloader)
 
     return avg_loss, avg_iou
 
@@ -65,22 +66,25 @@ def main():
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Loading model and changing input, output shapes
-    model = torchvision.models.segmentation.deeplabv3_mobilenet_v3_large(weights=True)
+    model = torchvision.models.segmentation.deeplabv3_mobilenet_v3_large(weights="DEFAULT")
     model.backbone["0"][0] = nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1, bias=False)
     model.classifier[4] = torch.nn.Conv2d(256, CLASSES_N, kernel_size=(1, 1))
+    if LOAD_STATE_DICT:
+        model.load_state_dict(torch.load(STATE_DICT_PATH))
     model.to(DEVICE)
 
     # Defining loss function and optimizer
-    loss_fn = torch.nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
     for epoch in range(EPOCHS):
         model.train()
         running_loss = 0
+        total_iou = 0
 
         for images, masks in train_dataloader:
-            images, masks = images.to(DEVICE), masks.to(DEVICE).long().squeeze(1)
+            images, masks = images.to(DEVICE), masks.to(DEVICE).squeeze(1)
             optimizer.zero_grad()
 
             # Forward pass
@@ -91,18 +95,24 @@ def main():
             loss.backward()
             optimizer.step()
 
+            # Calculate IoU
+            preds = torch.argmax(outputs, dim=1)
+            iou = (preds & masks).sum() / (preds | masks).sum()
+            total_iou += iou.item()
+
             running_loss += loss.item()
 
             print("#", end="")
         
         avg_train_loss = running_loss / len(train_dataloader)
+        avg_train_iou = total_iou / len(train_dataloader)
         torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"model{epoch}.pth.tar"))
 
         # Evaluation
         avg_val_loss, avg_val_iou = evaluate_model(model, val_dataloader, loss_fn)
 
         print(f"\nEpoch {epoch+1}/{EPOCHS}")
-        print(f"    Training Loss: {avg_train_loss:.4f}")
+        print(f"    Training Loss: {avg_train_loss:.4f}, Training IoU: {avg_train_iou:.4f}")
         print(f"    Validation Loss: {avg_val_loss:.4f}, Validation IoU: {avg_val_iou:.4f}")
             
 

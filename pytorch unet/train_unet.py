@@ -18,13 +18,13 @@ from utils import (
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 8
-NUM_EPOCHS = 10
+BATCH_SIZE = 4
+NUM_EPOCHS = 100
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 960
 IMAGE_WIDTH = 960
 PIN_MEMORY = True
-LOAD_MODEL = True
+LOAD_MODEL = False
 TRAIN_IMG_DIR = "data/train_images/"
 TRAIN_MASK_DIR = "data/train_masks/"
 VAL_IMG_DIR = "data/val_images/"
@@ -111,15 +111,17 @@ def main():
             "state_dict": model.state_dict(),
             "optimizer":optimizer.state_dict(),
         }
-        save_checkpoint(checkpoint)
 
-        # check accuracy
-        check_accuracy(val_loader, model, device=DEVICE)
+        if (epoch+1) % 10 == 0:
+            save_checkpoint(checkpoint)
 
-        # print some examples to a folder
-        save_predictions_as_imgs(
-            val_loader, model, folder="saved_images/", device=DEVICE
-        )
+            # check accuracy
+            check_accuracy(val_loader, model, device=DEVICE)
+
+            # print some examples to a folder
+            save_predictions_as_imgs(
+                val_loader, model, folder="saved_images/", device=DEVICE
+            )
 
 
 if __name__ == "__main__":

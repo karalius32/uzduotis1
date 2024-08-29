@@ -30,3 +30,6 @@ pytorch unet/my_checkpoint.pth.tar
 pytorch unet/unet_exported.torchscript
 pytorch unet/data/
 pytorch unet/saved_images/
+pytorch deeplab/saved_models/
+pytorch deeplab/deeplab_exported.torchscript
+pytorch unet/my_checkpoint.pth70.tar

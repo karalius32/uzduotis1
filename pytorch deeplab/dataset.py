@@ -1,6 +1,9 @@
 import os 
 from PIL import Image
 from torch.utils.data import Dataset
+import numpy as np
+import torch
+from matplotlib import pyplot as plt
 
 
 class CustomDataset(Dataset):
@@ -22,5 +25,7 @@ class CustomDataset(Dataset):
         if self.transform is not None:
             image = self.transform(image)
             mask = self.transform(mask)
-    
+
+        mask = torch.where(mask > 0, 1, 0).long()
+
         return image, mask

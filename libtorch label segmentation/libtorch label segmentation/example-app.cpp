@@ -10,35 +10,43 @@
 #include "helper.h"
 #include "helper_new.h"
 
+#define YOLO 0
+#define UNET 1
+#define DEEPLAB 2
+
 using std::cout;
 using std::endl;
 
-void TestYoloModel(const char* path, std::vector<cv::Mat> images, std::string name);
+
+void TestModel(const char* path, std::vector<cv::Mat> images, std::string name, int modelType);
 std::vector<cv::Mat> ReadImages(std::string folderPath, cv::Size modelInputSize);
 std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::DeviceType deviceType, int ch);
 void Predict_YOLO(std::vector<cv::Mat> images, torch::jit::script::Module model);
 void Predict_UNET(std::vector<cv::Mat> images, torch::jit::script::Module model);
-void TestUnetModel(const char* path, std::vector<cv::Mat> images, std::string name);
+void Predict_Deeplab(std::vector<cv::Mat> images, torch::jit::script::Module model);
 std::vector<std::vector<cv::Mat>> TorchUnet_PredictMasks(std::vector<cv::Mat> images);
+void Predict_Deeplab(std::vector<cv::Mat> images, torch::jit::script::Module model);
 
 int main() 
 {
 	const char* MODEL_YOLOV8N_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\best_n.torchscript";
 	const char* MODEL_YOLOV8S_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\best_s.torchscript";
 	const char* MODEL_UNET_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\unet_exported.torchscript";
+	const char* MODEL_DEEPLAB_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\deeplab_exported.torchscript";
 	const char* IMAGES_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\images";
 
 	std::vector<cv::Mat> images = ReadImages(IMAGES_PATH, cv::Size(960, 960));
 
-	TestYoloModel(MODEL_YOLOV8N_PATH, images, "yolov8n (3.4M params): ");
-	TestYoloModel(MODEL_YOLOV8S_PATH, images, "yolov8s (11.8M params): ");
-	TestUnetModel(MODEL_UNET_PATH, images, "UNET (31M params): ");
+	//TestModel(MODEL_YOLOV8N_PATH, images, "yolov8n (3.4M params): ", YOLO);
+	//TestModel(MODEL_YOLOV8S_PATH, images, "yolov8s (11.8M params): ", YOLO);
+	TestModel(MODEL_UNET_PATH, images, "UNET (1M params): ", UNET);
+	TestModel(MODEL_DEEPLAB_PATH, images, "DeeplabV3 (11M params): ", DEEPLAB);
 
 
 	return 0;
 }
 
-void TestYoloModel(const char* path, std::vector<cv::Mat> images, std::string name)
+void TestModel(const char* path, std::vector<cv::Mat> images, std::string name, int modelType)
 {
 	torch::jit::script::Module model;
 	model = torch::jit::load(path, at::kCUDA);
@@ -48,26 +56,18 @@ void TestYoloModel(const char* path, std::vector<cv::Mat> images, std::string na
 	for (int i = 0; i < 10; i++)
 	{
 		cout << i + 1 << ": " << endl;
-		Predict_YOLO(images, model);
-		cout << "--------------------" << endl;
-	}
-
-	cout << endl;
-
-	model.to(at::kCPU);
-}
-
-void TestUnetModel(const char* path, std::vector<cv::Mat> images, std::string name)
-{
-	torch::jit::script::Module model;
-	model = torch::jit::load(path, at::kCUDA);
-	model.eval();
-
-	cout << name << endl;
-	for (int i = 0; i < 10; i++)
-	{
-		cout << i + 1 << ": " << endl;
-		Predict_UNET(images, model);
+		switch (modelType) 
+		{
+			case YOLO:
+				Predict_YOLO(images, model);
+				break;
+			case UNET:
+				Predict_UNET(images, model);
+				break;
+			case DEEPLAB:
+				Predict_Deeplab(images, model);
+				break;
+		}
 		cout << "--------------------" << endl;
 	}
 
@@ -171,6 +171,26 @@ void Predict_UNET(std::vector<cv::Mat> images, torch::jit::script::Module model)
 	auto t1 = std::chrono::high_resolution_clock::now();
 
 	torch::Tensor output = model.forward(inputs).toTensor().to(at::kCPU);
+
+	auto t2 = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+	cout << "Inference duration: " << duration << "ms" << endl;
+
+	// Process the output
+}
+
+void Predict_Deeplab(std::vector<cv::Mat> images, torch::jit::script::Module model)
+{
+	std::vector<torch::Tensor> imageTensors = PreprocessImages(images, at::kCUDA, 1);
+
+	// Prepare the tensors for model input
+	torch::Tensor input = torch::cat(imageTensors, 0);
+	std::vector<torch::jit::IValue> inputs{ input };
+
+	// Forward pass
+	auto t1 = std::chrono::high_resolution_clock::now();
+
+	torch::Tensor output = model.forward(inputs).toGenericDict().at("out").toTensor().to(at::kCPU);
 
 	auto t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
