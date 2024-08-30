@@ -6,6 +6,9 @@ from torch import nn
 import torchvision
 import os
 from matplotlib import pyplot as plt
+import time
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 
 # Hyperparameters
@@ -13,12 +16,12 @@ DEVICE = "cuda"
 IMAGE_WIDTH = 960
 IMAGE_HEIGHT = 960
 CLASSES_N = 2 # 0 - background, 1 - label
-LEARNING_RATE = 0.003
-EPOCHS = 10
+LEARNING_RATE = 0.001
+EPOCHS = 500
 BATCH_SIZE = 4
 CHECKPOINT_PATH = "saved_models/"
 LOAD_STATE_DICT = True
-STATE_DICT_PATH = "saved_models/model_1.pth.tar"
+STATE_DICT_PATH = "saved_models/best.pth.tar"
 
 
 def evaluate_model(model, dataloader, loss_fn):
@@ -47,22 +50,30 @@ def evaluate_model(model, dataloader, loss_fn):
 
 
 def main():
-    # Defining transformations. Would be good to add augmentations.
-    train_transform = transforms.Compose([
+    # Defining transformations
+    transform = transforms.Compose([
         transforms.Resize((IMAGE_WIDTH, IMAGE_HEIGHT)),
         transforms.ToTensor(),
     ])
-    val_transform = transforms.Compose([
-        transforms.Resize((IMAGE_WIDTH, IMAGE_HEIGHT)),
-        transforms.ToTensor(),
+    transform_A = A.Compose([
+        A.Resize(IMAGE_WIDTH, IMAGE_HEIGHT),
+        A.Rotate(limit=35, p=1.0),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.RandomSizedCrop((IMAGE_WIDTH / 2, IMAGE_HEIGHT / 2), (IMAGE_WIDTH, IMAGE_HEIGHT), p=0.25),
+        ToTensorV2()
+    ])
+    val_transform_A = A.Compose([
+        A.Resize(IMAGE_WIDTH, IMAGE_HEIGHT),
+        ToTensorV2()
     ])
 
     # Loading train dataset
-    train_dataset = CustomDataset(image_dir="data/train_images", mask_dir="data/train_masks", transform=train_transform)
+    train_dataset = CustomDataset(image_dir="data/train_images", mask_dir="data/train_masks", transform=transform_A)
     train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     # Loading validation dataset
-    val_dataset = CustomDataset(image_dir="data/val_images", mask_dir="data/val_masks", transform=val_transform)
+    val_dataset = CustomDataset(image_dir="data/val_images", mask_dir="data/val_masks", transform=val_transform_A)
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Loading model and changing input, output shapes
@@ -78,7 +89,9 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     # Training loop
+    scaler = torch.cuda.amp.GradScaler()
     for epoch in range(EPOCHS):
+        start = time.time()
         model.train()
         running_loss = 0
         total_iou = 0
@@ -88,12 +101,14 @@ def main():
             optimizer.zero_grad()
 
             # Forward pass
-            outputs = model(images)["out"]
-            loss = loss_fn(outputs, masks)
+            with torch.cuda.amp.autocast():
+                outputs = model(images)["out"]
+                loss = loss_fn(outputs, masks)
 
             # Backward pass
-            loss.backward()
-            optimizer.step()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             # Calculate IoU
             preds = torch.argmax(outputs, dim=1)
@@ -106,12 +121,15 @@ def main():
         
         avg_train_loss = running_loss / len(train_dataloader)
         avg_train_iou = total_iou / len(train_dataloader)
-        torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"model{epoch}.pth.tar"))
+        if (epoch+1) % 20 == 0:
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"model{epoch+1}.pth.tar"))
 
         # Evaluation
         avg_val_loss, avg_val_iou = evaluate_model(model, val_dataloader, loss_fn)
 
-        print(f"\nEpoch {epoch+1}/{EPOCHS}")
+        end = time.time()
+
+        print(f"\nEpoch {epoch+1}/{EPOCHS}. Time elapsed: {(end - start):.2f}s")
         print(f"    Training Loss: {avg_train_loss:.4f}, Training IoU: {avg_train_iou:.4f}")
         print(f"    Validation Loss: {avg_val_loss:.4f}, Validation IoU: {avg_val_iou:.4f}")
             

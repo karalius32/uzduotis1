@@ -19,13 +19,15 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):
         img_path = os.path.join(self.image_dir, self.images[idx])
         mask_path = os.path.join(self.mask_dir, self.images[idx].replace(".jpg", ".png"))
-        image = Image.open(img_path).convert("L")
-        mask = Image.open(mask_path).convert("L")
+        image = np.array(Image.open(img_path).convert("L"))
+        mask = np.array(Image.open(mask_path).convert("L"))
 
         if self.transform is not None:
-            image = self.transform(image)
-            mask = self.transform(mask)
+            transformed = self.transform(image=image, mask=mask)
+            image = transformed["image"]
+            mask = transformed["mask"]
 
+        image = image.to(torch.float32)
         mask = torch.where(mask > 0, 1, 0).long()
 
         return image, mask

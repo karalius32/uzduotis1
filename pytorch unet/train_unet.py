@@ -1,127 +1,129 @@
-# https://github.com/aladdinpersson/Machine-Learning-Collection/blob/master/ML/Pytorch/image_segmentation/semantic_segmentation_unet/train.py#L86
-
 import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from model import UNET
-from utils import (
-    load_checkpoint,
-    save_checkpoint,
-    get_loaders,
-    check_accuracy,
-    save_predictions_as_imgs,
-)
+from dataset import CustomDataset
+from torch.utils.data import DataLoader
+import time
+import os
 
-# Hyperparameters etc.
-LEARNING_RATE = 1e-4
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 4
-NUM_EPOCHS = 100
-NUM_WORKERS = 2
-IMAGE_HEIGHT = 960
+
+# Hyperparameters
+DEVICE = "cuda"
 IMAGE_WIDTH = 960
-PIN_MEMORY = True
-LOAD_MODEL = False
-TRAIN_IMG_DIR = "data/train_images/"
-TRAIN_MASK_DIR = "data/train_masks/"
-VAL_IMG_DIR = "data/val_images/"
-VAL_MASK_DIR = "data/val_masks/"
+IMAGE_HEIGHT = 960
+LEARNING_RATE = 0.0003
+EPOCHS = 15
+BATCH_SIZE = 4
+CHECKPOINT_PATH = "saved_models/"
+LOAD_STATE_DICT = True
+STATE_DICT_PATH = "saved_models/checkpoint.pth.tar"
 
-def train_fn(loader, model, optimizer, loss_fn, scaler):
-    loop = tqdm(loader)
 
-    for batch_idx, (data, targets) in enumerate(loop):
-        data = data.to(device=DEVICE)
-        targets = targets.float().unsqueeze(1).to(device=DEVICE)
+def evaluate_model(model, dataloader, loss_fn):
+    model.eval()
+    running_loss = 0
+    total_iou = 0
 
-        # forward
-        with torch.cuda.amp.autocast():
-            predictions = model(data)
-            loss = loss_fn(predictions, targets)
+    with torch.no_grad():
+        for images, masks in dataloader:
+            images, masks = images.to(DEVICE), masks.to(DEVICE).squeeze(1)
 
-        # backward
-        optimizer.zero_grad()
-        scaler.scale(loss).backward()
-        scaler.step(optimizer)
-        scaler.update()
+            # Forward pass
+            outputs = model(images).squeeze(1)
+            loss = loss_fn(outputs, masks)
+            running_loss += loss.item()
 
-        # update tqdm loop
-        loop.set_postfix(loss=loss.item())
+            # Calculate IoU
+            preds = torch.where(torch.sigmoid(outputs) > 0.5, 1, 0).int()
+            masks = masks.int()
+            iou = (preds & masks).sum() / (preds | masks).sum()
+            total_iou += iou.item()
+    
+    avg_loss = running_loss / len(dataloader)
+    avg_iou = total_iou / len(dataloader)
 
+    return avg_loss, avg_iou
 
 def main():
-    train_transform = A.Compose(
-        [
-            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+    # Defining transformations
+    transform_A = A.Compose([
+            A.Resize(IMAGE_WIDTH, IMAGE_HEIGHT),
             A.Rotate(limit=35, p=1.0),
             A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.1),
-            A.Normalize(
-                mean=[0.0, 0.0, 0.0],
-                std=[1.0, 1.0, 1.0],
-                max_pixel_value=255.0,
-            ),
-            ToTensorV2(),
-        ],
-    )
+            A.VerticalFlip(p=0.5),
+            A.RandomSizedCrop((IMAGE_WIDTH / 2, IMAGE_HEIGHT / 2), (IMAGE_WIDTH, IMAGE_HEIGHT), p=0.25),
+            ToTensorV2()
+    ])
+    val_transform_A = A.Compose([
+            A.Resize(IMAGE_WIDTH, IMAGE_HEIGHT),
+            ToTensorV2()
+    ])
 
-    val_transforms = A.Compose(
-        [
-            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
-            A.Normalize(
-                mean=[0.0, 0.0, 0.0],
-                std=[1.0, 1.0, 1.0],
-                max_pixel_value=255.0,
-            ),
-            ToTensorV2(),
-        ],
-    )
+    # Loading train dataset
+    train_dataset = CustomDataset(image_dir="data/train_images", mask_dir="data/train_masks", transform=transform_A)
+    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
+    # Loading validation dataset
+    val_dataset = CustomDataset(image_dir="data/val_images", mask_dir="data/val_masks", transform=val_transform_A)
+    val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+    # Loading model
     model = UNET(in_channels=1, out_channels=1).to(DEVICE)
+    if LOAD_STATE_DICT:
+        model.load_state_dict(torch.load(STATE_DICT_PATH))
+
+    # Defining loss function and optimizer
     loss_fn = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    train_loader, val_loader = get_loaders(
-        TRAIN_IMG_DIR,
-        TRAIN_MASK_DIR,
-        VAL_IMG_DIR,
-        VAL_MASK_DIR,
-        BATCH_SIZE,
-        train_transform,
-        val_transforms,
-        NUM_WORKERS,
-        PIN_MEMORY,
-    )
-
-    if LOAD_MODEL:
-        load_checkpoint(torch.load("my_checkpoint.pth.tar"), model)
-
-
-    check_accuracy(val_loader, model, device=DEVICE)
+    # Training loop
     scaler = torch.cuda.amp.GradScaler()
+    for epoch in range(EPOCHS):
+        start = time.time()
+        model.train()
+        running_loss = 0
+        total_iou = 0
 
-    for epoch in range(NUM_EPOCHS):
-        train_fn(train_loader, model, optimizer, loss_fn, scaler)
+        for images, masks in train_dataloader:
+            images, masks = images.to(DEVICE), masks.to(DEVICE).squeeze(1)
+            optimizer.zero_grad()
 
-        # save model
-        checkpoint = {
-            "state_dict": model.state_dict(),
-            "optimizer":optimizer.state_dict(),
-        }
+            # Forward pass
+            with torch.cuda.amp.autocast():
+                outputs = model(images).squeeze(1)
+                loss = loss_fn(outputs, masks)
 
-        if (epoch+1) % 10 == 0:
-            save_checkpoint(checkpoint)
+            # Backward pass
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
-            # check accuracy
-            check_accuracy(val_loader, model, device=DEVICE)
+            # Calculate IoU
+            preds = torch.where(torch.sigmoid(outputs) > 0.5, 1, 0).int()
+            masks = masks.int()
+            iou = (preds & masks).sum() / (preds | masks).sum()
+            total_iou += iou.item()
 
-            # print some examples to a folder
-            save_predictions_as_imgs(
-                val_loader, model, folder="saved_images/", device=DEVICE
-            )
+            running_loss += loss.item()
+
+            print("#", end="")
+        
+        avg_train_loss = running_loss / len(train_dataloader)
+        avg_train_iou = total_iou / len(train_dataloader)
+        if (epoch+1) % 1 == 0:
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"model_unet{epoch}.pth.tar"))
+
+        # Evaluation
+        avg_val_loss, avg_val_iou = evaluate_model(model, val_dataloader, loss_fn)
+
+        end = time.time()
+
+        print(f"\nEpoch {epoch+1}/{EPOCHS}. Time elapsed: {(end - start):.2f}s")
+        print(f"    Training Loss: {avg_train_loss:.4f}, Training IoU: {avg_train_iou:.4f}")
+        print(f"    Validation Loss: {avg_val_loss:.4f}, Validation IoU: {avg_val_iou:.4f}")
 
 
 if __name__ == "__main__":

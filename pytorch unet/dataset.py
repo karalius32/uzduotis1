@@ -1,9 +1,9 @@
-# https://github.com/aladdinpersson/Machine-Learning-Collection/blob/master/ML/Pytorch/image_segmentation/semantic_segmentation_unet/dataset.py
-
 import os
 from PIL import Image
 from torch.utils.data import Dataset
 import numpy as np
+import torch
+
 
 class CustomDataset(Dataset):
     def __init__(self, image_dir, mask_dir, transform=None):
@@ -19,12 +19,14 @@ class CustomDataset(Dataset):
         img_path = os.path.join(self.image_dir, self.images[index])
         mask_path = os.path.join(self.mask_dir, self.images[index].replace(".jpg", ".png"))
         image = np.array(Image.open(img_path).convert("L"))
-        mask = np.array(Image.open(mask_path).convert("L"), dtype=np.float32)
-        mask[mask == 255.0] = 1.0
+        mask = np.array(Image.open(mask_path).convert("L"))
 
         if self.transform is not None:
-            augmentations = self.transform(image=image, mask=mask)
-            image = augmentations["image"]
-            mask = augmentations["mask"]
+            transformed = self.transform(image=image, mask=mask)
+            image = transformed["image"]
+            mask = transformed["mask"]
+
+        image = image.to(torch.float32)
+        mask = torch.where(mask > 0, 1, 0).to(torch.float32)
 
         return image, mask
