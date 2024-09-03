@@ -3,15 +3,25 @@ from dataset import CustomDataset
 import torchvision.transforms as transforms
 import torch
 from torch import nn
-import torchvision
 import os
 from matplotlib import pyplot as plt
 import time
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+import model_loader
+from utils import evaluate_model
+
+# should try: 
+# https://github.com/XuJiacong/PIDNet
+# https://github.com/Fourier7754/AsymFormer
 
 
-# Hyperparameters
+# deeplabv3: Validation Loss: 0.0159, Validation IoU: 0.9680
+# deeplabv3plus_l: Validation Loss: 0.0111, Validation IoU: 0.9782
+# deeplabv3plus_s: Validation Loss: 0.0143, Validation IoU: 0.9700
+
+
+# Hyperparameters and other model training params
 DEVICE = "cuda"
 IMAGE_WIDTH = 960
 IMAGE_HEIGHT = 960
@@ -19,42 +29,18 @@ CLASSES_N = 2 # 0 - background, 1 - label
 LEARNING_RATE = 0.001
 EPOCHS = 500
 BATCH_SIZE = 4
+
 CHECKPOINT_PATH = "saved_models/"
-LOAD_STATE_DICT = True
-STATE_DICT_PATH = "saved_models/best.pth.tar"
+SAVED_MODEL_NAME = "model_unetplusplus_"
+SAVE_CHECKPOINT_IN_BETWEEN_N_EPOCHS = 10
 
-
-def evaluate_model(model, dataloader, loss_fn):
-    model.eval()
-    running_loss = 0
-    total_iou = 0
-
-    with torch.no_grad():
-        for images, masks in dataloader:
-            images, masks = images.to(DEVICE), masks.to(DEVICE).squeeze(1)
-
-            # Forward pass
-            outputs = model(images)["out"]
-            loss = loss_fn(outputs, masks)
-            running_loss += loss.item()
-
-            # Calculate IoU
-            preds = torch.argmax(outputs, dim=1)
-            iou = (preds & masks).sum() / (preds | masks).sum()
-            total_iou += iou.item()
-    
-    avg_loss = running_loss / len(dataloader)
-    avg_iou = total_iou / len(dataloader)
-
-    return avg_loss, avg_iou
+MODEL_TYPE = "unetplusplus"
+LOAD_STATE_DICT = False
+STATE_DICT_PATH = "saved_models/model_pspnet50_BEST.pth.tar"
 
 
 def main():
     # Defining transformations
-    transform = transforms.Compose([
-        transforms.Resize((IMAGE_WIDTH, IMAGE_HEIGHT)),
-        transforms.ToTensor(),
-    ])
     transform_A = A.Compose([
         A.Resize(IMAGE_WIDTH, IMAGE_HEIGHT),
         A.Rotate(limit=35, p=1.0),
@@ -77,11 +63,10 @@ def main():
     val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
     # Loading model and changing input, output shapes
-    model = torchvision.models.segmentation.deeplabv3_mobilenet_v3_large(weights="DEFAULT")
-    model.backbone["0"][0] = nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1, bias=False)
-    model.classifier[4] = torch.nn.Conv2d(256, CLASSES_N, kernel_size=(1, 1))
+    model = model_loader.SegmentationModel(MODEL_TYPE, CLASSES_N)
     if LOAD_STATE_DICT:
         model.load_state_dict(torch.load(STATE_DICT_PATH))
+
     model.to(DEVICE)
 
     # Defining loss function and optimizer
@@ -102,7 +87,7 @@ def main():
 
             # Forward pass
             with torch.cuda.amp.autocast():
-                outputs = model(images)["out"]
+                outputs = model(images)
                 loss = loss_fn(outputs, masks)
 
             # Backward pass
@@ -121,11 +106,11 @@ def main():
         
         avg_train_loss = running_loss / len(train_dataloader)
         avg_train_iou = total_iou / len(train_dataloader)
-        if (epoch+1) % 20 == 0:
-            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"model{epoch+1}.pth.tar"))
+        if (epoch+1) % SAVE_CHECKPOINT_IN_BETWEEN_N_EPOCHS == 0:
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"{SAVED_MODEL_NAME}{epoch+1}.pth.tar"))
 
         # Evaluation
-        avg_val_loss, avg_val_iou = evaluate_model(model, val_dataloader, loss_fn)
+        avg_val_loss, avg_val_iou = evaluate_model(model, val_dataloader, loss_fn, DEVICE)
 
         end = time.time()
 

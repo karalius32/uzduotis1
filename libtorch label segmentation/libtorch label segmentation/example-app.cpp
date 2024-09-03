@@ -9,6 +9,7 @@
 #include <string>
 #include "helper.h"
 #include "helper_new.h"
+#include <fstream>
 
 #define YOLO 0
 #define UNET 1
@@ -18,62 +19,103 @@ using std::cout;
 using std::endl;
 
 
-void TestModel(const char* path, std::vector<cv::Mat> images, std::string name, int modelType);
+// Function for calculating median 
+double Median(std::vector<int> v, int n)
+{
+	// Sort the vector 
+	sort(v.begin(), v.end());
+
+	// Check if the number of elements is odd 
+	if (n % 2 != 0)
+		return (double)v[n / 2];
+
+	// If the number of elements is even, return the average 
+	// of the two middle elements 
+	return (double)(v[(n - 1) / 2] + v[n / 2]) / 2.0;
+}
+
+
+double TestModel(torch::jit::script::Module model, std::vector<cv::Mat> images, std::string name, int modelType);
 std::vector<cv::Mat> ReadImages(std::string folderPath, cv::Size modelInputSize);
 std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::DeviceType deviceType, int ch);
 void Predict_YOLO(std::vector<cv::Mat> images, torch::jit::script::Module model);
-void Predict_UNET(std::vector<cv::Mat> images, torch::jit::script::Module model);
-void Predict_Deeplab(std::vector<cv::Mat> images, torch::jit::script::Module model);
+int Predict_UNET_DEEPLAB(std::vector<cv::Mat> images, torch::jit::script::Module model);
 std::vector<std::vector<cv::Mat>> TorchUnet_PredictMasks(std::vector<cv::Mat> images);
 void Predict_Deeplab(std::vector<cv::Mat> images, torch::jit::script::Module model);
 
 int main() 
 {
-	const char* MODEL_YOLOV8N_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\best_n.torchscript";
-	const char* MODEL_YOLOV8S_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\best_s.torchscript";
-	const char* MODEL_UNET_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\unet_exported.torchscript";
-	const char* MODEL_DEEPLAB_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\deeplab_exported.torchscript";
+	const char* MODEL_YOLOV8N_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\best_n.torchscript";
+	const char* MODEL_YOLOV8S_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\best_s.torchscript";
+	const char* MODEL_UNET_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\unet_exported.torchscript";
+	const char* MODEL_DEEPLAB_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\deeplabv3_exported.torchscript";
+	const char* MODEL_DEEPLAB_PLUS_L_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\deeplabv3plus_l_exported.torchscript";
+	const char* MODEL_DEEPLAB_PLUS_S_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\deeplabv3plus_s_exported.torchscript";
+	const char* MODEL_PSPNET18_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\pspnet18_exported.torchscript";
+	const char* MODEL_PSPNET50_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\pspnet50_exported.torchscript";
 	const char* IMAGES_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\images";
 
-	std::vector<cv::Mat> images = ReadImages(IMAGES_PATH, cv::Size(960, 960));
+	//std::vector<cv::Mat> images = ReadImages(IMAGES_PATH, cv::Size(960, 960));
 
-	//TestModel(MODEL_YOLOV8N_PATH, images, "yolov8n (3.4M params): ", YOLO);
-	//TestModel(MODEL_YOLOV8S_PATH, images, "yolov8s (11.8M params): ", YOLO);
-	TestModel(MODEL_UNET_PATH, images, "UNET (1M params): ", UNET);
-	TestModel(MODEL_DEEPLAB_PATH, images, "DeeplabV3 (11M params): ", DEEPLAB);
+	std::ofstream file;
+	file.open("pspnet50.csv");
 
+	torch::jit::script::Module model = torch::jit::load(MODEL_PSPNET50_PATH, at::kCUDA);
+	model.eval();
+	for (int s = 10; s < 100; s += 5)
+	{
+		int imageSize = s * 16;
+		std::vector<cv::Mat> images = ReadImages(IMAGES_PATH, cv::Size(imageSize, imageSize));
+		double median = TestModel(model, images, "name ", DEEPLAB);
+		cout << "Image size: " << imageSize << "; Median inference time: " << median << endl;
+		file << imageSize << "," << median << "\n";
+	}
+
+	file.close();
+
+	//TestModel(MODEL_YOLOV8N_PATH, images, "yolov8n 3.4M params: ", YOLO);
+	//TestModel(MODEL_YOLOV8S_PATH, images, "yolov8s 11.8M params: ", YOLO);
+	//TestModel(MODEL_UNET_PATH, images, "UNET 1M params: ", UNET);
+
+	/*double median_deeplab = TestModel(MODEL_DEEPLAB_PATH, images, "DeeplabV3(mobile_net_v3_large) 11M params: ", DEEPLAB);
+	cout << "Median: " << median_deeplab << endl << endl << endl;
+	double median_deeplab_plus_l = TestModel(MODEL_DEEPLAB_PLUS_L_PATH, images, "DeeplabV3+(resnet18) 12.3M params: ", DEEPLAB);
+	cout << "Median: " << median_deeplab_plus_l << endl << endl << endl;
+	double median_deeplab_plus_s = TestModel(MODEL_DEEPLAB_PLUS_S_PATH, images, "DeeplabV3+(mobile_net_v3_large) 4.7M params: ", DEEPLAB);
+	cout << "Median: " << median_deeplab_plus_s << endl << endl << endl;*/
 
 	return 0;
 }
 
-void TestModel(const char* path, std::vector<cv::Mat> images, std::string name, int modelType)
+double TestModel(torch::jit::script::Module model, std::vector<cv::Mat> images, std::string name, int modelType)
 {
-	torch::jit::script::Module model;
-	model = torch::jit::load(path, at::kCUDA);
-	model.eval();
+	std::vector<int> inference_times;
 
-	cout << name << endl;
-	for (int i = 0; i < 10; i++)
+	//cout << name << endl;
+	for (int i = 0; i < 100; i++)
 	{
-		cout << i + 1 << ": " << endl;
+		//cout << i + 1 << ": " << endl;
 		switch (modelType) 
 		{
 			case YOLO:
 				Predict_YOLO(images, model);
 				break;
 			case UNET:
-				Predict_UNET(images, model);
+				Predict_UNET_DEEPLAB(images, model);
 				break;
 			case DEEPLAB:
-				Predict_Deeplab(images, model);
+				int inference_time = Predict_UNET_DEEPLAB(images, model);
+				inference_times.push_back(inference_time);
 				break;
 		}
-		cout << "--------------------" << endl;
+		//cout << "--------------------" << endl;
 	}
 
-	cout << endl;
+	//cout << endl;
 
-	model.to(at::kCPU);
+	//model.to(at::kCPU);
+
+	return Median(inference_times, inference_times.size());
 }
 
 std::vector<cv::Mat> ReadImages(std::string folderPath, cv::Size modelInputSize)
@@ -159,7 +201,7 @@ void Predict_YOLO(std::vector<cv::Mat> images, torch::jit::script::Module model)
 	//helper::DrawResults(images[imgIndex], results);
 }
 
-void Predict_UNET(std::vector<cv::Mat> images, torch::jit::script::Module model)
+int Predict_UNET_DEEPLAB(std::vector<cv::Mat> images, torch::jit::script::Module model)
 {
 	std::vector<torch::Tensor> imageTensors = PreprocessImages(images, at::kCUDA, 1);
 
@@ -174,28 +216,9 @@ void Predict_UNET(std::vector<cv::Mat> images, torch::jit::script::Module model)
 
 	auto t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-	cout << "Inference duration: " << duration << "ms" << endl;
+	//cout << "Inference duration: " << duration << "ms" << endl;
 
-	// Process the output
-}
-
-void Predict_Deeplab(std::vector<cv::Mat> images, torch::jit::script::Module model)
-{
-	std::vector<torch::Tensor> imageTensors = PreprocessImages(images, at::kCUDA, 1);
-
-	// Prepare the tensors for model input
-	torch::Tensor input = torch::cat(imageTensors, 0);
-	std::vector<torch::jit::IValue> inputs{ input };
-
-	// Forward pass
-	auto t1 = std::chrono::high_resolution_clock::now();
-
-	torch::Tensor output = model.forward(inputs).toGenericDict().at("out").toTensor().to(at::kCPU);
-
-	auto t2 = std::chrono::high_resolution_clock::now();
-	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-	cout << "Inference duration: " << duration << "ms" << endl;
-
+	return duration;
 	// Process the output
 }
 

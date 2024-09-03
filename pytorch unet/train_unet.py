@@ -14,12 +14,12 @@ import os
 DEVICE = "cuda"
 IMAGE_WIDTH = 960
 IMAGE_HEIGHT = 960
-LEARNING_RATE = 0.0003
-EPOCHS = 15
+LEARNING_RATE = 0.001
+EPOCHS = 100
 BATCH_SIZE = 4
 CHECKPOINT_PATH = "saved_models/"
 LOAD_STATE_DICT = True
-STATE_DICT_PATH = "saved_models/checkpoint.pth.tar"
+STATE_DICT_PATH = "saved_models/best.pth.tar"
 
 
 def evaluate_model(model, dataloader, loss_fn):
@@ -113,8 +113,8 @@ def main():
         
         avg_train_loss = running_loss / len(train_dataloader)
         avg_train_iou = total_iou / len(train_dataloader)
-        if (epoch+1) % 1 == 0:
-            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"model_unet{epoch}.pth.tar"))
+        if (epoch+1) % 10 == 0:
+            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"model_unet{epoch+1}.pth.tar"))
 
         # Evaluation
         avg_val_loss, avg_val_iou = evaluate_model(model, val_dataloader, loss_fn)

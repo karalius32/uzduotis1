@@ -35,3 +35,13 @@ pytorch deeplab/deeplab_exported.torchscript
 pytorch unet/my_checkpoint.pth70.tar
 pytorch unet/saved_models/best.pth.tar
 pytorch unet/my_checkpoint70.pth.tar
+libtorch label segmentation/libtorch label segmentation/models/
+pytorch deeplab igel test/cache/
+pytorch deeplab igel test/data/images/
+pytorch deeplab igel test/data/
+pytorch deeplab igel test/test/
+pytorch deeplab/exported/
+libtorch label segmentation/libtorch label segmentation/inference tests/
+pytorch unet/saved_models/
+pytorch deeplab igel test/saved_models/
+pytorch deeplab/saved_models_plus/
