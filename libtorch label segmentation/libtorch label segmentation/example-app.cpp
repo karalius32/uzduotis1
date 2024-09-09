@@ -53,14 +53,16 @@ int main()
 	const char* MODEL_DEEPLAB_PLUS_S_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\deeplabv3plus_s_exported.torchscript";
 	const char* MODEL_PSPNET18_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\pspnet18_exported.torchscript";
 	const char* MODEL_PSPNET50_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\pspnet50_exported.torchscript";
+	const char* MODEL_UNETPLUSPLUS_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\unetplusplus_exported.torchscript";
+
 	const char* IMAGES_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\images";
 
 	//std::vector<cv::Mat> images = ReadImages(IMAGES_PATH, cv::Size(960, 960));
 
 	std::ofstream file;
-	file.open("pspnet50.csv");
+	file.open("unet.csv");
 
-	torch::jit::script::Module model = torch::jit::load(MODEL_PSPNET50_PATH, at::kCUDA);
+	torch::jit::script::Module model = torch::jit::load(MODEL_UNET_PATH, at::kCUDA);
 	model.eval();
 	for (int s = 10; s < 100; s += 5)
 	{

@@ -27,16 +27,16 @@ IMAGE_WIDTH = 960
 IMAGE_HEIGHT = 960
 CLASSES_N = 2 # 0 - background, 1 - label
 LEARNING_RATE = 0.001
-EPOCHS = 500
+EPOCHS = 5
 BATCH_SIZE = 4
 
 CHECKPOINT_PATH = "saved_models/"
-SAVED_MODEL_NAME = "model_unetplusplus_"
-SAVE_CHECKPOINT_IN_BETWEEN_N_EPOCHS = 10
+SAVED_MODEL_NAME = "model_unet_"
+SAVE_CHECKPOINT_IN_BETWEEN_N_EPOCHS = 1
 
-MODEL_TYPE = "unetplusplus"
+MODEL_TYPE = "unet"
 LOAD_STATE_DICT = False
-STATE_DICT_PATH = "saved_models/model_pspnet50_BEST.pth.tar"
+STATE_DICT_PATH = "saved_models/model_unetplusplus_BEST.pth.tar"
 
 
 def main():

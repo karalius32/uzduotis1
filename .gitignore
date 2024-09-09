@@ -45,3 +45,7 @@ libtorch label segmentation/libtorch label segmentation/inference tests/
 pytorch unet/saved_models/
 pytorch deeplab igel test/saved_models/
 pytorch deeplab/saved_models_plus/
+pytorch deeplab igel test/cache_test/
+pytorch deeplab igel test/cache_val/
+pytorch deeplab igel test/validation/
+pytorch deeplab igel test/checkpoints/

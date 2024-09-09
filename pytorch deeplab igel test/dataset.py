@@ -28,6 +28,6 @@ class CustomDataset(Dataset):
             mask = transformed["mask"]
 
         image = image.to(torch.float32)
-        mask = torch.where(mask > 0, 1, 0).long()
+        mask = mask.long()
 
         return image, mask

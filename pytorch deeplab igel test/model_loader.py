@@ -12,6 +12,9 @@ class SegmentationModel(nn.Module):
                     "deeplabv3" - 11M params, mobilenetv3_large bacbone.<br>
                     "deeplabv3plus_s" - 4.7M params, mobilenetv3_large backbone.<br>
                     "deeplabv3plus_l" - 12.3M params, resnet_18 backbone.<br>
+                    "pspnet_r18"
+                    "pspnet_r50"
+                    "unetplusplus"
     """
     def __init__(self, model_type, classes_n):
         super().__init__()
@@ -25,6 +28,14 @@ class SegmentationModel(nn.Module):
                 self.model = smp.DeepLabV3Plus(encoder_name="timm-mobilenetv3_large_100", encoder_weights="imagenet", in_channels=1, classes=classes_n)
             case "deeplabv3plus_l":
                 self.model = smp.DeepLabV3Plus(encoder_name="resnet18", encoder_weights="imagenet", in_channels=1, classes=classes_n)
+            case "pspnet_r18":
+                self.model = smp.PSPNet(encoder_name="resnet18", encoder_weights="imagenet", in_channels=1, classes=classes_n)
+            case "pspnet_r50":
+                self.model = smp.PSPNet(encoder_name="resnet50", encoder_weights="imagenet", in_channels=1, classes=classes_n)
+            case "unetplusplus":
+                self.model = smp.UnetPlusPlus(encoder_name="resnet18", encoder_weights="imagenet", in_channels=1, classes=classes_n)
+            case "unet":
+                self.model = smp.Unet(encoder_name="resnet18", encoder_weights="imagenet", in_channels=1, classes=classes_n)
             
 
     def forward(self, X):

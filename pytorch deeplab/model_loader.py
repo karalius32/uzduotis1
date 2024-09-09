@@ -34,6 +34,8 @@ class SegmentationModel(nn.Module):
                 self.model = smp.PSPNet(encoder_name="resnet50", encoder_weights="imagenet", in_channels=1, classes=classes_n)
             case "unetplusplus":
                 self.model = smp.UnetPlusPlus(encoder_name="resnet18", encoder_weights="imagenet", in_channels=1, classes=classes_n)
+            case "unet":
+                self.model = smp.Unet(encoder_name="resnet18", encoder_weights="imagenet", in_channels=1, classes=classes_n)
             
 
     def forward(self, X):

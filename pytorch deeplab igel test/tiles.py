@@ -56,6 +56,9 @@ def generate_tiles(image_file, label_file, out_dir, tile_size, zero_sampling):
         rect[1] = int(rect[1] * h)
         rect[2] = int(rect[2] * w)
         rect[3] = int(rect[3] * h)
+        if rect[2] != tile_size[0] or rect[3] != tile_size[1]:
+            rect[2] = tile_size[0]
+            rect[3] = tile_size[1]
         img_tile = utils.crop(img, rect[0], rect[1], rect[2], rect[3])
         lbl_tile = utils.crop(lbl, rect[0], rect[1], rect[2], rect[3])
         file_name = utils.get_file_name(image_file) + ('_%i_%i_%i_%i' % (rect[0], rect[1], rect[2], rect[3]))

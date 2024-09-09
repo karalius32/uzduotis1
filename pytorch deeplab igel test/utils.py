@@ -4,14 +4,16 @@ import numpy as np
 import shutil
 
 
-def evaluate_model(model, dataloader, loss_fn, device, class_n):
+def evaluate_model(model, dataloader, loss_fn, device, class_n, batch_size):
     model.eval()
     running_loss = 0
     total_iou = 0
 
-    precisions = [[] for i in range(class_n)]
-    recalls = [[] for i in range(class_n)]
-    classes_counts = [0 for i in range(class_n)]
+    precisions = [0 for _ in range(class_n)]
+    recalls = [0 for _ in range(class_n)]
+    ious = [0 for _ in range(class_n)]
+    dices = [0 for _ in range(class_n)]
+    classes_counts = [0 for _ in range(class_n)]
 
     with torch.no_grad():
         for images, masks in dataloader:
@@ -21,30 +23,39 @@ def evaluate_model(model, dataloader, loss_fn, device, class_n):
             outputs = model(images)
             loss = loss_fn(outputs, masks)
             running_loss += loss.item()
-
-            # Calculate IoU
             preds = torch.argmax(outputs, dim=1)
+
+            # Total iou
+            total_iou += (torch.where(preds & masks > 0, 1, 0).sum() / torch.where(preds | masks > 0, 1, 0).sum()).item()
+
+            # precision, recall and iou for each class
             for c in range(1, class_n):
-                tp = np.sum(preds[masks == c] == c) #TP
-                fn = np.sum(preds[masks == c] != c) #TP
-                fp = np.sum(masks[preds == c] != c) #FP
+                tp = torch.sum(preds[masks == c] == c).item()
+                fn = torch.sum(preds[masks == c] != c).item()
+                fp = torch.sum(masks[preds == c] != c).item()
+
                 precision = tp / (tp + fp + 1e-6)
                 recall = tp / (tp + fn + 1e-6)
-                precisions[c].append(precision)
-                recalls[c].append(recall)
-            classes, counts = np.unique(np.array([x for xs in [list(np.unique(x.flatten())) for x in masks] for x in xs]), return_counts=True)
-            for c, n in zip(classes, counts):
-                classes_counts[c] += n
-            iou = (preds & masks).sum() / (preds | masks).sum()
-            total_iou += iou.item()
-    
-    for i in range(1, class_n):
-        precisions[i] = sum(precisions[i]) / classes_counts[i]
-        recalls[i] = sum(recalls[i]) / classes_counts[i]
+                iou = (((preds == c) & (masks == c)).sum() / (((preds == c) | (masks == c)).sum() + 1e-6)).item()
+                dice = (2 * tp) / (2 * tp + fp + fn + 1e-6)
+
+                precisions[c] += precision
+                recalls[c] += recall
+                ious[c] += iou
+                dices[c] += dice
+
+                if (torch.sum(masks == c) > 0):
+                    classes_counts[c] += 1
+
+    for c in range(1, class_n):
+        precisions[c] = precisions[c] / classes_counts[c]
+        recalls[c] = recalls[c] / classes_counts[c]
+        ious[c] = ious[c] / classes_counts[c]
+        dices[c] = dices[c] / classes_counts[c]
     avg_loss = running_loss / len(dataloader)
     avg_iou = total_iou / len(dataloader)
 
-    return avg_loss, avg_iou
+    return precisions, recalls, ious, dices, avg_loss, avg_iou
 
 
 def crop(img, x, y, w, h):
@@ -139,6 +150,8 @@ def generate_validation_set(dir, size):
     Args:
     size: percent of all data to put in validation set (from 0 to 1)
     """
+    if os.path.exists(os.path.join(dir, "val_images")):
+        return
     images = os.listdir(os.path.join(dir, "images"))
     length = len(images)
     n = int(length * size)
