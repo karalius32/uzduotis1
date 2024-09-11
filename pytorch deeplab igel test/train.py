@@ -12,12 +12,15 @@ import model_loader
 from utils import evaluate_model
 import tiles
 import utils
+import sys 
+import json
+import pandas as pd
 
 
 # should try: 
 # unet++ and pspnet
 
-""" deeplabv3_l
+""" deeplabv3_r18
 Epoch 6/10. Time elapsed: 32.18s
     Training Loss: 0.0077, Training IoU: 0.7097
     Validation Loss: 0.0214, Validation IoU: 0.5455
@@ -40,7 +43,7 @@ Epoch 980/1000. Time elapsed: 22.35s
 
 
 
-# Hyperparameters and other model training params
+"""# Hyperparameters and other model training params
 DEVICE = "cuda"
 IMAGE_SIZE = 320
 CLASSES_N = 4 # 3 classes + 1 background
@@ -60,14 +63,15 @@ TRAIN_IMAGES_PATH = "cache/images"
 TRAIN_MASKS_PATH = "cache/labels"
 VAL_IMAGES_PATH = "cache_val/images"
 VAL_MASKS_PATH = "cache_val/labels"
+"""
 
 
 
-def main():
+def main(config):
     # Tiling and caching data
-    tiles.generate_tile_cache("data//images", "data//masks", "cache", size=IMAGE_SIZE, zero_sampling=0)
-    tiles.generate_tile_cache("validation//images", "validation//masks", "cache_val", size=IMAGE_SIZE, zero_sampling=0)
-    #utils.generate_validation_set("cache", 0.1)
+    tiles.generate_tile_cache("data//images", "data//masks", "cache", size=config["image_size"], zero_sampling=0)
+    if config["do_validation"]:
+        tiles.generate_tile_cache("validation//images", "validation//masks", "cache_val", size=config["image_size"], zero_sampling=0)
 
     # Defining transformations
     transform_A = A.Compose([
@@ -77,7 +81,7 @@ def main():
         A.VerticalFlip(p=0.5),
         A.RandomBrightnessContrast(p=1),
         A.GaussianBlur(p=0.25),
-        A.RandomSizedCrop((IMAGE_SIZE / 2, IMAGE_SIZE / 2), (IMAGE_SIZE, IMAGE_SIZE), p=0.25),
+        A.RandomSizedCrop((config["image_size"] / 2, config["image_size"] / 2), (config["image_size"], config["image_size"]), p=0.25),
         ToTensorV2()
     ])
     val_transform_A = A.Compose([
@@ -86,34 +90,36 @@ def main():
     ])
 
     # Loading train dataset
-    train_dataset = CustomDataset(image_dir=TRAIN_IMAGES_PATH, mask_dir=TRAIN_MASKS_PATH, transform=transform_A)
-    train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    train_dataset = CustomDataset(image_dir=config["train_images_path"], mask_dir=config["train_masks_path"], transform=transform_A)
+    train_dataloader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=config["shuffle_dataset"])
 
     # Loading validation dataset
-    val_dataset = CustomDataset(image_dir=VAL_IMAGES_PATH, mask_dir=VAL_MASKS_PATH, transform=val_transform_A)
-    val_dataloader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
+    if config["do_validation"]:
+        val_dataset = CustomDataset(image_dir=config["val_images_path"], mask_dir=config["val_masks_path"], transform=val_transform_A)
+        val_dataloader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False)
 
     # Loading model and changing input, output shapes
-    model = model_loader.SegmentationModel(MODEL_TYPE, CLASSES_N)
-    if LOAD_STATE_DICT:
-        model.load_state_dict(torch.load(STATE_DICT_PATH))
+    model = model_loader.SegmentationModel(config["model_type"], config["encoder"], config["classes_n"])
+    if config["load_state_dict"]:
+        model.load_state_dict(torch.load(config["state_dict_path"]))
 
-    model.to(DEVICE)
+    model.to(config["device"])
 
     # Defining loss function and optimizer
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
     # Training loop
+    history = {"loss": [], "iou": []}
     scaler = torch.cuda.amp.GradScaler()
-    for epoch in range(EPOCHS):
+    for epoch in range(config["epochs"]):
         start = time.time()
         model.train()
         running_loss = 0
         total_iou = 0
 
         for images, masks in train_dataloader:
-            images, masks = images.to(DEVICE), masks.to(DEVICE).squeeze(1)
+            images, masks = images.to(config["device"]), masks.to(config["device"]).squeeze(1)
             optimizer.zero_grad()
 
             # Forward pass
@@ -132,31 +138,38 @@ def main():
 
             running_loss += loss.item()
 
-            #print("#", end="")
+            print("#", end="", flush=True)
         
         avg_train_loss = running_loss / len(train_dataloader)
         avg_train_iou = total_iou / len(train_dataloader)
-        if epoch == 0 or (epoch+1) % SAVE_CHECKPOINT_IN_BETWEEN_N_EPOCHS == 0:
-            torch.save(model.state_dict(), os.path.join(CHECKPOINT_PATH, f"{SAVED_MODEL_NAME}{epoch+1}.pth"))
+
+        end = time.time()
+        print(f"\nEpoch {epoch+1}/{config['epochs']}. Time elapsed: {(end - start):.2f}s")
+        print(f"    Train Loss: {avg_train_loss:.4f}, Train IoU: {avg_train_iou:.4f}")
+        history["loss"].append(avg_train_loss)
+        history["iou"].append(avg_train_iou)
+
+        if epoch == 0 or (epoch+1) % config["save_checkpoint_in_between_n_epochs"] == 0:
+            torch.save(model.state_dict(), os.path.join(config["checkpoint_path"], f"{config['checkpoint_name']}{epoch+1}.pth"))
+            pd.DataFrame(history).to_csv(f"histories/history_{config['checkpoint_name']}_{epoch+1}.csv")
 
             # Evaluation
-            precisions, recalls, ious, dices, avg_val_loss, avg_val_iou = evaluate_model(model, val_dataloader, loss_fn, DEVICE, CLASSES_N, BATCH_SIZE)
-
-            end = time.time()
-
-            print(f"\nEpoch {epoch+1}/{EPOCHS}. Time elapsed: {(end - start):.2f}s")
-            print(f"    Training Loss: {avg_train_loss:.4f}, Training IoU: {avg_train_iou:.4f}")
-            print(f"    Validation Loss: {avg_val_loss:.4f}, Validation IoU: {avg_val_iou:.4f}")
-            print(f"    Metrics by class:")
-            print(f"        IoU:        {[round(x, 2) for x in ious[1:]]}")
-            print(f"        Dice (F1):  {[round(x, 2) for x in dices[1:]]}")
-            print(f"        Precision:  {[round(x, 2) for x in precisions[1:]]}")
-            print(f"        Recall:     {[round(x, 2) for x in recalls[1:]]}")
+            if config["do_validation"]:
+                precisions, recalls, ious, dices, avg_val_loss, avg_val_iou = evaluate_model(model, val_dataloader, loss_fn, config["device"], config["classes_n"], config["batch_size"])
+                print(f"    Validation Loss: {avg_val_loss:.4f}, Validation IoU: {avg_val_iou:.4f}")
+                print(f"    Metrics by class:")
+                print(f"        IoU:        {[round(x, 2) for x in ious[1:]]}")
+                print(f"        Dice (F1):  {[round(x, 2) for x in dices[1:]]}")
+                print(f"        Precision:  {[round(x, 2) for x in precisions[1:]]}")
+                print(f"        Recall:     {[round(x, 2) for x in recalls[1:]]}")
 
 
             
 
 if __name__ == "__main__":
-    main()
+    config = {}
+    with open(sys.argv[1]) as config_file:
+        config = json.load(config_file)
+    main(config)
 
 

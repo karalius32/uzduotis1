@@ -62,9 +62,9 @@ int main()
 	std::ofstream file;
 	file.open("unet.csv");
 
-	torch::jit::script::Module model = torch::jit::load(MODEL_UNET_PATH, at::kCUDA);
+	torch::jit::script::Module model = torch::jit::load(MODEL_UNETPLUSPLUS_PATH, at::kCUDA);
 	model.eval();
-	for (int s = 10; s < 100; s += 5)
+	for (int s = 60; s < 100; s += 5)
 	{
 		int imageSize = s * 16;
 		std::vector<cv::Mat> images = ReadImages(IMAGES_PATH, cv::Size(imageSize, imageSize));
@@ -109,6 +109,16 @@ double TestModel(torch::jit::script::Module model, std::vector<cv::Mat> images, 
 				int inference_time = Predict_UNET_DEEPLAB(images, model);
 				inference_times.push_back(inference_time);
 				break;
+				/*try 
+				{
+					int inference_time = Predict_UNET_DEEPLAB(images, model);
+					inference_times.push_back(inference_time);
+				}
+				catch (std::runtime_error e)
+				{
+					int a = 0;
+				}
+				break;*/
 		}
 		//cout << "--------------------" << endl;
 	}

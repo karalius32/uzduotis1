@@ -49,3 +49,4 @@ pytorch deeplab igel test/cache_test/
 pytorch deeplab igel test/cache_val/
 pytorch deeplab igel test/validation/
 pytorch deeplab igel test/checkpoints/
+pytorch deeplab igel test/histories/
