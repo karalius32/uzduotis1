@@ -2,11 +2,11 @@ libtorch label segmentation/.vs/
 libtorch label segmentation/libtorch label segmentation/images_copy/
 libtorch label segmentation/libtorch label segmentation/libtorch label segmentation.dir/
 libtorch label segmentation/libtorch label segmentation/x64/
-pytorch yolo/data/
-pytorch yolo/data_for_yolo/
-pytorch yolo/train28/
-pytorch yolo/best.pt
-pytorch yolo/best.torchscript
+archive/pytorch yolo/data/
+archive/pytorch yolo/data_for_yolo/
+archive/pytorch yolo/train28/
+archive/pytorch yolo/best.pt
+archive/pytorch yolo/best.torchscript
 libtorch label segmentation/libtorch label segmentation/best.torchscript
 libtorch label segmentation/libtorch label segmentation/best_n.torchscript
 libtorch label segmentation/libtorch label segmentation/best_s.torchscript
@@ -16,42 +16,42 @@ libtorch label segmentation/libtorch label segmentation/tensor_output.txt
 libtorch label segmentation/libtorch label segmentation/prototypes.pt
 libtorch label segmentation/libtorch label segmentation/tensor_vector.pt
 libtorch label segmentation/libtorch label segmentation/unet_exported.torchscript
-pytorch labels/data/
-pytorch yolo/best_n.torchscript
-pytorch yolo/best_n.pt
-pytorch yolo/converted_image.pt
-pytorch yolo/output_0.pt
-pytorch yolo/prototypes.pt
-pytorch yolo/yolov8n.pt
-pytorch yolo/yolov8n-seg.pt
-pytorch yolo/ultralytics/
-pytorch unet/deeplab_exported.torchscript
-pytorch unet/my_checkpoint.pth.tar
-pytorch unet/unet_exported.torchscript
-pytorch unet/data/
-pytorch unet/saved_images/
-pytorch labels/saved_models/
-pytorch labels/deeplab_exported.torchscript
-pytorch unet/my_checkpoint.pth70.tar
-pytorch unet/saved_models/best.pth.tar
-pytorch unet/my_checkpoint70.pth.tar
+archive/pytorch labels/data/
+archive/pytorch yolo/best_n.torchscript
+archive/pytorch yolo/best_n.pt
+archive/pytorch yolo/converted_image.pt
+archive/pytorch yolo/output_0.pt
+archive/pytorch yolo/prototypes.pt
+archive/pytorch yolo/yolov8n.pt
+archive/pytorch yolo/yolov8n-seg.pt
+archive/pytorch yolo/ultralytics/
+archive/pytorch unet/deeplab_exported.torchscript
+archive/pytorch unet/my_checkpoint.pth.tar
+archive/pytorch unet/unet_exported.torchscript
+archive/pytorch unet/data/
+archive/pytorch unet/saved_images/
+archive/pytorch labels/saved_models/
+archive/pytorch labels/deeplab_exported.torchscript
+archive/pytorch unet/my_checkpoint.pth70.tar
+archive/pytorch unet/saved_models/best.pth.tar
+archive/pytorch unet/my_checkpoint70.pth.tar
 libtorch label segmentation/libtorch label segmentation/models/
 pytorch igel/cache/
 pytorch igel/data/images/
 pytorch igel/data/
 pytorch igel/test/
-pytorch labels/exported/
+archive/pytorch labels/exported/
 libtorch label segmentation/libtorch label segmentation/inference tests/
-pytorch unet/saved_models/
+archive/pytorch unet/saved_models/
 pytorch igel/saved_models/
-pytorch labels/saved_models_plus/
+archive/pytorch labels/saved_models_plus/
 pytorch igel/cache_test/
 pytorch igel/cache_val/
 pytorch igel/validation/
 pytorch igel/checkpoints/
 pytorch igel/histories/
-pytorch labels/test/
-pytorch yolo/images/
+archive/pytorch labels/test/
+archive/pytorch yolo/images/
 pytorch igel/deeplab_exported.torchscript
 pytorch igel/pspnet_exported.torchscript
 pytorch igel/cache.zip
