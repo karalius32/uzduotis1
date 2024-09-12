@@ -1,0 +1,9 @@
+path: data_for_yolo
+train: C:\git\darbas\pytorch label segmentation\data_for_yolo\train
+val: C:\git\darbas\pytorch label segmentation\data_for_yolo\val
+test: C:\git\darbas\pytorch label segmentation\data_for_yolo\test
+
+ch: 1
+
+names:
+  0: label

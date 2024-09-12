@@ -39,8 +39,8 @@ double TestModel(torch::jit::script::Module model, std::vector<cv::Mat> images, 
 std::vector<cv::Mat> ReadImages(std::string folderPath, cv::Size modelInputSize);
 std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::DeviceType deviceType, int ch);
 void Predict_YOLO(std::vector<cv::Mat> images, torch::jit::script::Module model);
-int Predict_UNET_DEEPLAB(std::vector<cv::Mat> images, torch::jit::script::Module model);
-std::vector<std::vector<cv::Mat>> TorchUnet_PredictMasks(std::vector<cv::Mat> images);
+int Predict(std::vector<cv::Mat> images, torch::jit::script::Module model);
+std::vector<std::vector<cv::Mat>> PredictMasks(torch::jit::script::Module net, std::vector<cv::Mat> images);
 void Predict_Deeplab(std::vector<cv::Mat> images, torch::jit::script::Module model);
 
 int main() 
@@ -62,8 +62,12 @@ int main()
 	std::ofstream file;
 	file.open("unet.csv");
 
-	torch::jit::script::Module model = torch::jit::load(MODEL_UNETPLUSPLUS_PATH, at::kCUDA);
+	torch::jit::script::Module model = torch::jit::load(MODEL_PSPNET18_PATH, at::kCUDA);
 	model.eval();
+
+	std::vector<cv::Mat> images = ReadImages(IMAGES_PATH, cv::Size(960, 960));
+	std::vector<std::vector<cv::Mat>> outputs = PredictMasks(model, images);
+
 	for (int s = 60; s < 100; s += 5)
 	{
 		int imageSize = s * 16;
@@ -103,10 +107,10 @@ double TestModel(torch::jit::script::Module model, std::vector<cv::Mat> images, 
 				Predict_YOLO(images, model);
 				break;
 			case UNET:
-				Predict_UNET_DEEPLAB(images, model);
+				Predict(images, model);
 				break;
 			case DEEPLAB:
-				int inference_time = Predict_UNET_DEEPLAB(images, model);
+				int inference_time = Predict(images, model);
 				inference_times.push_back(inference_time);
 				break;
 				/*try 
@@ -213,7 +217,7 @@ void Predict_YOLO(std::vector<cv::Mat> images, torch::jit::script::Module model)
 	//helper::DrawResults(images[imgIndex], results);
 }
 
-int Predict_UNET_DEEPLAB(std::vector<cv::Mat> images, torch::jit::script::Module model)
+int Predict(std::vector<cv::Mat> images, torch::jit::script::Module model)
 {
 	std::vector<torch::Tensor> imageTensors = PreprocessImages(images, at::kCUDA, 1);
 
@@ -234,13 +238,8 @@ int Predict_UNET_DEEPLAB(std::vector<cv::Mat> images, torch::jit::script::Module
 	// Process the output
 }
 
-std::vector<std::vector<cv::Mat>> TorchUnet_PredictMasks(std::vector<cv::Mat> images)
+std::vector<std::vector<cv::Mat>> PredictMasks(torch::jit::script::Module net, std::vector<cv::Mat> images)
 {
-	const char* MODEL_UNET_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\unet_exported.torchscript";
-	torch::jit::script::Module net;
-	net = torch::jit::load(MODEL_UNET_PATH, at::kCUDA);
-	net.eval();
-
 	std::vector<std::vector<cv::Mat>> output;
 
 	std::vector<torch::Tensor> imageTensors;

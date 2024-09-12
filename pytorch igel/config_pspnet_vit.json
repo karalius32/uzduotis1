@@ -1,0 +1,28 @@
+{
+	"device": "cuda",
+    "lr": 0.0003,
+    "epochs": 500,
+    "batch_size": 32,
+    "loss": "",
+    
+    "shuffle_dataset": false,
+    "image_size": 320,
+    "classes_n": 3,
+    "use_background": true,
+
+    "checkpoint_path": "checkpoints/",
+    "checkpoint_name": "model_pspnet_mobilevit_",
+    "save_checkpoint_in_between_n_epochs": 10,
+
+    "model_type": "pspnet",
+    "encoder": "tu-mobilevitv2_100",
+    "load_state_dict": false,
+    "state_dict_path": "checkpoints/model_BEST.pth",
+
+    "train_images_path": "data/images",
+    "train_masks_path": "data/masks",
+
+    "do_validation": false,
+    "val_images_path": "",
+    "val_masks_path": ""
+}

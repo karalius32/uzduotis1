@@ -1,0 +1,28 @@
+{
+	"device": "cuda",
+    "lr": 0.0003,
+    "epochs": 5,
+    "batch_size": 32,
+    "loss": "",
+    
+    "shuffle_dataset": false,
+    "image_size": 320,
+    "classes_n": 3,
+    "use_background": true,
+
+    "checkpoint_path": "checkpoints/",
+    "checkpoint_name": "test_",
+    "save_checkpoint_in_between_n_epochs": 1,
+
+    "model_type": "deeplabv3plus",
+    "encoder": "resnet18",
+    "load_state_dict": false,
+    "state_dict_path": "checkpoints/model_BEST.pth",
+
+    "train_images_path": "data/images",
+    "train_masks_path": "data/masks",
+
+    "do_validation": false,
+    "val_images_path": "",
+    "val_masks_path": ""
+}
