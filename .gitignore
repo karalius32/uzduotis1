@@ -55,3 +55,7 @@ archive/pytorch yolo/images/
 pytorch igel/deeplab_exported.torchscript
 pytorch igel/pspnet_exported.torchscript
 pytorch igel/cache.zip
+libtorch label segmentation/libtorch label segmentation/images_igel/
+pytorch igel/cache saves/
+pytorch igel/data_for_training_with_eval/
+pytorch igel/exported/

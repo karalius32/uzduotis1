@@ -3,7 +3,7 @@ from torch import nn
 
 
 class SegmentationModel(nn.Module):
-    def __init__(self, model_type, encoder, classes_n, use_background):
+    def __init__(self, model_type, encoder, classes_n, use_background, dont_slice=False):
         """
         model_type:
             - deeplabv3plus
@@ -13,12 +13,14 @@ class SegmentationModel(nn.Module):
             - timm-regnety_002
             - mit_b0
             - tu-mobilevitv2_100
+            - tu-mobilevitv2_050
             - timm-mobilenetv3_small_100
         """
         super().__init__()
         self.model_type = model_type
         self.encoder = encoder
         self.use_background = use_background
+        self.dont_slice = dont_slice
         if use_background:
             classes_n += 1
         match self.model_type:
@@ -30,7 +32,7 @@ class SegmentationModel(nn.Module):
 
     def forward(self, X):
         outputs = self.model(X)
-        if self.training or not self.use_background:
+        if self.training or not self.use_background or self.dont_slice:
             return outputs
         else:
             return outputs[:, 1:, :, :]

@@ -175,9 +175,9 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </ProjectReference>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="example-app.cpp" />
     <ClCompile Include="helper.cpp" />
     <ClCompile Include="helper_new.cpp" />
+    <ClCompile Include="source2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="helper.h" />

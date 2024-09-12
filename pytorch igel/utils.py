@@ -8,6 +8,7 @@ def evaluate_model(model, dataloader, loss_fn, device, class_n, batch_size):
     model.eval()
     running_loss = 0
     total_iou = 0
+    class_n = class_n + 1 # if use background
 
     precisions = [0 for _ in range(class_n)]
     recalls = [0 for _ in range(class_n)]
@@ -20,7 +21,9 @@ def evaluate_model(model, dataloader, loss_fn, device, class_n, batch_size):
             images, masks = images.to(device), masks.to(device).squeeze(1)
 
             # Forward pass
+            model.dont_slice = True
             outputs = model(images)
+            model.dont_slice = False
             loss = loss_fn(outputs, masks)
             running_loss += loss.item()
             preds = torch.argmax(outputs, dim=1)

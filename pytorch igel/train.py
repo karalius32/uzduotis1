@@ -71,7 +71,7 @@ def main(config):
     optimizer = torch.optim.Adam(model.parameters(), lr=config["lr"])
 
     # Training loop
-    history = {"loss": [], "iou": []}
+    history = {"loss": [], "iou": [], "val_loss": [], "val_iou": []}
     scaler = torch.cuda.amp.GradScaler()
     for epoch in range(config["epochs"]):
         start = time.time()
@@ -112,7 +112,6 @@ def main(config):
 
         if epoch == 0 or (epoch+1) % config["save_checkpoint_in_between_n_epochs"] == 0:
             torch.save(model.state_dict(), os.path.join(config["checkpoint_path"], f"{config['checkpoint_name']}{epoch+1}.pth"))
-            pd.DataFrame(history).to_csv(f"histories/history_{config['checkpoint_name']}_{epoch+1}.csv")
 
             # Evaluation
             if config["do_validation"]:
@@ -123,7 +122,10 @@ def main(config):
                 print(f"        Dice (F1):  {[round(x, 2) for x in dices[1:]]}")
                 print(f"        Precision:  {[round(x, 2) for x in precisions[1:]]}")
                 print(f"        Recall:     {[round(x, 2) for x in recalls[1:]]}")
+                history["val_loss"].append(avg_val_loss)
+                history["val_iou"].append(avg_val_iou)
 
+            pd.DataFrame(history).to_csv(os.path.join(config["history_path"], f"{config['checkpoint_name']}_{epoch+1}.csv"))
 
             
 

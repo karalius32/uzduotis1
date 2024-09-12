@@ -1,0 +1,29 @@
+{
+	"device": "cuda",
+    "lr": 0.0003,
+    "epochs": 1,
+    "batch_size": 32,
+    "loss": "dice",
+    
+    "shuffle_dataset": false,
+    "image_size": 320,
+    "classes_n": 3,
+    "use_background": true,
+
+    "checkpoint_path": "checkpoints/pspnet_r18/",
+    "checkpoint_name": "pspnet_resnet18_",
+    "save_checkpoint_in_between_n_epochs": 1,
+    "history_path": "histories\\pspnet_r18",
+
+    "model_type": "pspnet",
+    "encoder": "resnet18",
+    "load_state_dict": false,
+    "state_dict_path": "",
+
+    "train_images_path": "data_for_training_with_eval\\train\\images",
+    "train_masks_path": "data_for_training_with_eval\\train\\masks",
+
+    "do_validation": true,
+    "val_images_path": "data_for_training_with_eval\\val\\images",
+    "val_masks_path": "data_for_training_with_eval\\val\\masks"
+}
