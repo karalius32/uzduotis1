@@ -1,8 +1,8 @@
 {
 	"device": "cuda",
     "lr": 0.0003,
-    "epochs": 1,
-    "batch_size": 32,
+    "epochs": 300,
+    "batch_size": 64,
     "loss": "dice",
     
     "shuffle_dataset": false,
@@ -12,7 +12,7 @@
 
     "checkpoint_path": "checkpoints/pspnet_vit/",
     "checkpoint_name": "pspnet_vit_",
-    "save_checkpoint_in_between_n_epochs": 1,
+    "save_checkpoint_in_between_n_epochs": 10,
     "history_path": "histories\\pspnet_vit",
 
     "model_type": "pspnet",

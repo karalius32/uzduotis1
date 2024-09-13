@@ -1,8 +1,8 @@
 {
 	"device": "cuda",
     "lr": 0.0003,
-    "epochs": 20,
-    "batch_size": 32,
+    "epochs": 300,
+    "batch_size": 64,
     "loss": "dice",
     
     "shuffle_dataset": false,
@@ -12,10 +12,10 @@
 
     "checkpoint_path": "checkpoints/",
     "checkpoint_name": "test_",
-    "save_checkpoint_in_between_n_epochs": 4,
+    "save_checkpoint_in_between_n_epochs": 2,
     "history_path": "histories/",
 
-    "model_type": "deeplabv3plus",
+    "model_type": "pspnet",
     "encoder": "resnet18",
     "load_state_dict": false,
     "state_dict_path": "",

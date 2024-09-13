@@ -2,7 +2,7 @@
 	"device": "cuda",
     "lr": 0.0003,
     "epochs": 300,
-    "batch_size": 32,
+    "batch_size": 64,
     "loss": "dice",
     
     "shuffle_dataset": false,

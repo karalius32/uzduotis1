@@ -10,11 +10,11 @@ class SegmentationModel(nn.Module):
             - pspnet
         encoder:
             - resnet18
-            - timm-regnety_002
-            - mit_b0
+            - timm-mobilenetv3_small_100
             - tu-mobilevitv2_100
             - tu-mobilevitv2_050
-            - timm-mobilenetv3_small_100
+            - timm-regnety_002
+            - mit_b0
         """
         super().__init__()
         self.model_type = model_type
