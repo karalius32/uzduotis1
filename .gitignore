@@ -59,3 +59,8 @@ libtorch label segmentation/libtorch label segmentation/images_igel/
 pytorch igel/cache saves/
 pytorch igel/data_for_training_with_eval/
 pytorch igel/exported/
+libtorch label segmentation/libtorch label segmentation/coloredTensor.pt
+libtorch label segmentation/libtorch label segmentation/predictedMasks.pt
+libtorch label segmentation/libtorch label segmentation/predictedMasks_before_postprocessing.pt
+libtorch label segmentation/libtorch label segmentation/predictedMasks2.pt
+pytorch igel/misc/
