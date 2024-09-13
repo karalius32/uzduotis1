@@ -107,8 +107,9 @@ def main(config):
         end = time.time()
         print(f"\nEpoch {epoch+1}/{config['epochs']}. Time elapsed: {(end - start):.2f}s")
         print(f"    Train Loss: {avg_train_loss:.4f}, Train IoU: {avg_train_iou:.4f}")
-        history["loss"].append(avg_train_loss)
-        history["iou"].append(avg_train_iou)
+        if not config["do_validation"]:
+            history["loss"].append(avg_train_loss)
+            history["iou"].append(avg_train_iou)
 
         if epoch == 0 or (epoch+1) % config["save_checkpoint_in_between_n_epochs"] == 0:
             torch.save(model.state_dict(), os.path.join(config["checkpoint_path"], f"{config['checkpoint_name']}{epoch+1}.pth"))
@@ -122,6 +123,8 @@ def main(config):
                 print(f"        Dice (F1):  {[round(x, 2) for x in dices[1:]]}")
                 print(f"        Precision:  {[round(x, 2) for x in precisions[1:]]}")
                 print(f"        Recall:     {[round(x, 2) for x in recalls[1:]]}")
+                history["loss"].append(avg_train_loss)
+                history["iou"].append(avg_train_iou)
                 history["val_loss"].append(avg_val_loss)
                 history["val_iou"].append(avg_val_iou)
 

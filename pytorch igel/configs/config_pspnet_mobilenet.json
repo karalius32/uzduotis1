@@ -10,13 +10,13 @@
     "classes_n": 3,
     "use_background": true,
 
-    "checkpoint_path": "checkpoints/pspnet_r18/",
-    "checkpoint_name": "pspnet_resnet18_",
+    "checkpoint_path": "checkpoints/pspnet_mobilenet/",
+    "checkpoint_name": "pspnet_mobilenet_",
     "save_checkpoint_in_between_n_epochs": 10,
-    "history_path": "histories\\pspnet_r18",
+    "history_path": "histories\\pspnet_mobilenet",
 
     "model_type": "pspnet",
-    "encoder": "resnet18",
+    "encoder": "timm-mobilenetv3_small_100",
     "load_state_dict": false,
     "state_dict_path": "",
 
