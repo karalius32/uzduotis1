@@ -8,7 +8,7 @@
     "shuffle_dataset": false,
     "image_size": 320,
     "classes_n": 3,
-    "use_background": false,
+    "use_background": true,
 
     "checkpoint_path": "checkpoints/",
     "checkpoint_name": "test_",

@@ -133,6 +133,7 @@ def main(config):
             
 
 if __name__ == "__main__":
+    os.environ ['CUDA_LAUNCH_BLOCKING'] = "1"
     config = {}
     with open(sys.argv[1]) as config_file:
         config = json.load(config_file)

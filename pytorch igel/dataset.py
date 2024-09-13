@@ -31,6 +31,6 @@ class CustomDataset(Dataset):
         image = image.to(torch.float32)
         mask = mask.long()
         if not self.use_background:
-            mask -= 1
+            mask = mask - 1
 
         return image, mask
