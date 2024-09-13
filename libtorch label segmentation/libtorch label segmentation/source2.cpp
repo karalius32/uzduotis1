@@ -62,9 +62,16 @@ int main()
 	torch::Tensor outputs = PredictMasks(&model, images); // predict masks
 	cout << outputs.sizes() << endl;
 
+	//torch::save(outputs, "predictedMasks2.pt");
+
 	std::vector<cv::Mat> masks = GetDrawableMasksFromTensor(outputs); // get masks as cv::Mat
 
-	cv::imshow("img1", masks[1]);
+	
+	cv::Mat imageWithMask;
+	cv::cvtColor(images[1], images[1], cv::COLOR_BGR2BGRA);
+	cv::addWeighted(images[1], 0.9, masks[1], 0.25, 0, imageWithMask);
+
+	cv::imshow("img1", imageWithMask);
 	cv::waitKey(0);
 
 	return 0;
@@ -103,7 +110,8 @@ std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::
 	{
 		cv::cvtColor(image, image, colorConversion); // converting color
 		torch::Tensor imageTensor = torch::from_blob(image.data, { image.rows, image.cols, ch }, torch::kByte).to(deviceType); // converting to tensor
-		imageTensor = imageTensor.toType(torch::kFloat32).div(255);
+		imageTensor = imageTensor.toType(torch::kFloat32);
+		//imageTensor = imageTensor.toType(torch::kFloat32).div(255);
 		imageTensor = imageTensor.permute({ 2, 0, 1 });
 		imageTensor = imageTensor.unsqueeze(0);
 		imageTensor = imageTensor.contiguous();
@@ -137,7 +145,7 @@ int Predict(std::vector<cv::Mat> images, torch::jit::script::Module model)
 
 torch::Tensor PredictMasks(torch::jit::script::Module* net, std::vector<cv::Mat> images)
 {
-	float treshold = 0;
+	float treshold = 0.2;
 
 	std::vector<std::vector<cv::Mat>> output;
 
@@ -149,6 +157,7 @@ torch::Tensor PredictMasks(torch::jit::script::Module* net, std::vector<cv::Mat>
 	auto t1 = std::chrono::high_resolution_clock::now();
 
 	auto pred = net->forward(inputs).toTensor().to(torch::kCPU);
+
 	auto maxValues = std::get<0>(torch::max(pred, 1));
 	auto condition = maxValues > treshold;
 	auto indices = torch::argmax(pred, 1) + 1;
@@ -190,8 +199,8 @@ std::vector<cv::Mat> GetDrawableMasksFromTensor(torch::Tensor predictions)
 	int height = predAccessor.size(1);
 	int width = predAccessor.size(2);
 
-	int a = 190;
-	std::vector<std::vector<int>> colors = { 
+	int a = 255;
+	std::vector<std::vector<int>> colors = {
 		{0, 0, 0, 0},
 		{0, 0, 255, a},
 		{0, 255, 0, a},
@@ -200,18 +209,18 @@ std::vector<cv::Mat> GetDrawableMasksFromTensor(torch::Tensor predictions)
 
 	for (int i = 0; i < batches; ++i)
 	{
-		torch::Tensor coloredTensor = torch::zeros({ 4, height, width });
+		torch::Tensor coloredTensor = torch::zeros({ 4, height, width }).to(torch::kUInt8);
 		auto slice = predictions[i];
 
 		for (int c = 0; c < classes_n; ++c)
 		{
-			auto mask = (slice == c).expand({ 4, -1, -1 }).to(torch::kUInt8);
-			auto color = torch::tensor(colors[c], torch::kUInt8).view({4, 1, 1});
+			auto mask = (slice == c).expand({ 4, height, width }).to(torch::kUInt8);
+			auto color = torch::tensor(colors[c], torch::kUInt8).view({ 4, 1, 1 });
 			coloredTensor += mask * color;
 		}
 
-		coloredTensor = coloredTensor.permute({ 1, 2, 0 });
-		cv::Mat coloredMat(coloredTensor.size(0), coloredTensor.size(1), CV_8UC4, coloredTensor.data_ptr());
+		coloredTensor = coloredTensor.permute({ 1, 2, 0 }).contiguous();
+		cv::Mat coloredMat(height, width, CV_8UC4, coloredTensor.data_ptr());
 		coloredMats.push_back(coloredMat.clone());
 	}
 
