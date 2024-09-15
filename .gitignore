@@ -64,3 +64,6 @@ libtorch label segmentation/libtorch label segmentation/predictedMasks.pt
 libtorch label segmentation/libtorch label segmentation/predictedMasks_before_postprocessing.pt
 libtorch label segmentation/libtorch label segmentation/predictedMasks2.pt
 pytorch igel/misc/
+pytorch igel/cache_train/
+pytorch igel/cache_full.zip
+pytorch igel/cache_val.zip
