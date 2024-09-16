@@ -67,3 +67,5 @@ pytorch igel/misc/
 pytorch igel/cache_train/
 pytorch igel/cache_full.zip
 pytorch igel/cache_val.zip
+pytorch igel/deeplabv3plus_mobilevitv2_050_300.torchscript
+pytorch igel/deeplabv3plus_resnet18_300.torchscript

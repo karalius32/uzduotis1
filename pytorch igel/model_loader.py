@@ -35,4 +35,5 @@ class SegmentationModel(nn.Module):
         if self.training or not self.use_background or self.dont_slice:
             return outputs
         else:
+            
             return outputs[:, 1:, :, :]

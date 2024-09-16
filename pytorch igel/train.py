@@ -40,12 +40,12 @@ def main(config):
     ])
 
     # Loading train dataset
-    train_dataset = CustomDataset(image_dir="cache/images", mask_dir="cache/labels", use_background=config['use_background'], transform=transform_A)
+    train_dataset = CustomDataset(image_dir="cache/images", mask_dir="cache/labels", transform=transform_A)
     train_dataloader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=config['shuffle_dataset'])
 
     # Loading validation dataset
     if config['do_validation']:
-        val_dataset = CustomDataset(image_dir="cache_val/images", mask_dir="cache_val/labels", use_background=config['use_background'], transform=val_transform_A)
+        val_dataset = CustomDataset(image_dir="cache_val/images", mask_dir="cache_val/labels", transform=val_transform_A)
         val_dataloader = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False)
 
     # Loading model and changing input, output shapes

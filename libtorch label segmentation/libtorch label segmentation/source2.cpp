@@ -41,7 +41,7 @@ std::vector<cv::Mat> GetDrawableMasksFromTensor(torch::Tensor predictions);
 
 int main() 
 {
-	const char* MODEL_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\model_deeplab_r18_500.torchscript";
+	const char* MODEL_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\deeplabv3plus_mobilevitv2_050_300.torchscript";
 
 	const char* IMAGES_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\images_igel";
 
@@ -111,7 +111,7 @@ std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::
 		cv::cvtColor(image, image, colorConversion); // converting color
 		torch::Tensor imageTensor = torch::from_blob(image.data, { image.rows, image.cols, ch }, torch::kByte).to(deviceType); // converting to tensor
 		imageTensor = imageTensor.toType(torch::kFloat32);
-		//imageTensor = imageTensor.toType(torch::kFloat32).div(255);
+		imageTensor = imageTensor.toType(torch::kFloat32).div(255);
 		imageTensor = imageTensor.permute({ 2, 0, 1 });
 		imageTensor = imageTensor.unsqueeze(0);
 		imageTensor = imageTensor.contiguous();
