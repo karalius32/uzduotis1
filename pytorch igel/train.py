@@ -127,8 +127,9 @@ def main(config):
                 history['iou'].append(avg_train_iou)
                 history['val_loss'].append(avg_val_loss)
                 history['val_iou'].append(avg_val_iou)
-
-            pd.DataFrame(history).to_csv(os.path.join(config['history_path'], f"{config['checkpoint_name']}_{epoch+1}.csv"))
+                pd.DataFrame(history).to_csv(os.path.join(config['history_path'], f"{config['checkpoint_name']}_{epoch+1}.csv"))
+            else:
+                pd.DataFrame(columns=[history["iou"], history["loss"]]).to_csv(os.path.join(config['history_path'], f"{config['checkpoint_name']}_{epoch+1}.csv"))
 
             
 
