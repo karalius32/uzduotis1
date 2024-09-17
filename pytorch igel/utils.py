@@ -77,38 +77,3 @@ def get_file_pairs(*args):
             pairs.append(np.append(root_file, matches))
     return pairs
 
-
-def generate_validation_set(dir, size):
-    """
-    Generates validation set over images (jpg) and masks (png).
-    assuming dir looks like this:
-    -dir:
-    ----images
-    ----labels
-    the result will be:
-    -dir:
-    ----images
-    ----masks
-    ----val_images
-    ----val_masks
-    
-    Args:
-    size: percent of all data to put in validation set (from 0 to 1)
-    """
-    if os.path.exists(os.path.join(dir, "val_images")):
-        return
-    images = os.listdir(os.path.join(dir, "images"))
-    length = len(images)
-    n = int(length * size)
-    indices = np.random.choice(length, n, replace=False)
-
-    val_img_dir = os.path.join(dir, "val_images")
-    val_masks_dir = os.path.join(dir, "val_masks")
-    MakeDirectory(val_img_dir)
-    MakeDirectory(val_masks_dir)
-    for i in indices:
-        image_path = os.path.join(dir, "images", images[i])
-        mask_path = os.path.join(dir, "labels", images[i].replace("jpg", "png"))
-        shutil.move(image_path, val_img_dir)
-        shutil.move(mask_path, val_masks_dir)
-

@@ -8,21 +8,17 @@ import time
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import model_loader
-from evaluation import evaluate_model
+from train_utils import evaluate_model, EarlyStopper
 import tiles
 import sys 
 import json
 import pandas as pd
 from segmentation_models_pytorch.losses import DiceLoss
+import utils
 
 
 
 def main(config):
-    # Tiling and caching data
-    tiles.generate_tile_cache(config['train_images_path'], config['train_masks_path'], "cache", size=config['image_size'], zero_sampling=0)
-    if config['do_validation']:
-        tiles.generate_tile_cache(config['val_images_path'], config['val_masks_path'], "cache_val", size=config['image_size'], zero_sampling=0)
-
     # Defining transformations
     transform_A = A.Compose([
         #A.Resize(IMAGE_SIZE, IMAGE_SIZE),
@@ -40,19 +36,18 @@ def main(config):
     ])
 
     # Loading train dataset
-    train_dataset = CustomDataset(image_dir="cache/images", mask_dir="cache/labels", transform=transform_A)
+    train_dataset = CustomDataset(image_dir=config['train_images_path'], mask_dir=config['train_masks_path'], transform=transform_A)
     train_dataloader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=config['shuffle_dataset'])
 
     # Loading validation dataset
     if config['do_validation']:
-        val_dataset = CustomDataset(image_dir="cache_val/images", mask_dir="cache_val/labels", transform=val_transform_A)
+        val_dataset = CustomDataset(image_dir=config['val_images_path'], mask_dir=config['val_masks_path'], transform=val_transform_A)
         val_dataloader = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False)
 
-    # Loading model and changing input, output shapes
+    # Loading model
     model = model_loader.SegmentationModel(config['model_type'], config['encoder'], config['classes_n'], config['use_background'])
     if config['load_state_dict']:
         model.load_state_dict(torch.load(config['state_dict_path']))
-
     model.to(config['device'])
 
     # Defining loss function
@@ -73,6 +68,7 @@ def main(config):
     # Training loop
     history = {"loss": [], "iou": [], "val_loss": [], "val_iou": []}
     scaler = torch.cuda.amp.GradScaler()
+    earlyStopper = EarlyStopper()
     for epoch in range(config['epochs']):
         start = time.time()
         model.train()
@@ -84,7 +80,7 @@ def main(config):
             optimizer.zero_grad()
 
             # Forward pass
-            with torch.cuda.amp.autocast():
+            with torch.autocast(device_type=config['device']):
                 outputs = model(images)
                 loss = loss_fn(outputs, masks)
 
@@ -104,14 +100,20 @@ def main(config):
         avg_train_loss = running_loss / len(train_dataloader)
         avg_train_iou = total_iou / len(train_dataloader)
 
+        if earlyStopper.early_stop(avg_train_loss):
+            break
+
         end = time.time()
-        print(f"\nEpoch {epoch+1}/{config['epochs']}. Time elapsed: {(end - start):.2f}s")
+        # !!! \n
+        print(f"Epoch {epoch+1}/{config['epochs']}. Time elapsed: {(end - start):.2f}s")
         print(f"    Train Loss: {avg_train_loss:.4f}, Train IoU: {avg_train_iou:.4f}")
         if not config['do_validation']:
             history['loss'].append(avg_train_loss)
             history['iou'].append(avg_train_iou)
 
         if epoch == 0 or (epoch+1) % config['save_checkpoint_in_between_n_epochs'] == 0:
+            utils.MakeDirectory(config['checkpoint_path'])
+            utils.MakeDirectory(config['history_path'])
             torch.save(model.state_dict(), os.path.join(config['checkpoint_path'], f"{config['checkpoint_name']}{epoch+1}.pth"))
 
             # Evaluation
@@ -134,7 +136,6 @@ def main(config):
             
 
 if __name__ == "__main__":
-    os.environ ['CUDA_LAUNCH_BLOCKING'] = "1"
     config = {}
     with open(sys.argv[1]) as config_file:
         config = json.load(config_file)

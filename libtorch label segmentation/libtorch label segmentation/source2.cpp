@@ -35,13 +35,14 @@ double TestModel(torch::jit::script::Module model, std::vector<cv::Mat> images, 
 std::vector<cv::Mat> ReadImages(std::string folderPath, cv::Size modelInputSize);
 std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::DeviceType deviceType, int ch);
 
-int Predict(std::vector<cv::Mat> images, torch::jit::script::Module model);
+std::vector<std::vector<cv::Mat>> Predict(torch::jit::script::Module* net, std::vector<cv::Mat> images);
 torch::Tensor PredictMasks(torch::jit::script::Module* net, std::vector<cv::Mat> images);
 std::vector<cv::Mat> GetDrawableMasksFromTensor(torch::Tensor predictions);
 
 int main() 
 {
-	const char* MODEL_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\deeplabv3plus_mobilevitv2_050_300.torchscript";
+	//const char* MODEL_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\deeplabv3plus_mobilevitv2_050_300.torchscript";
+	const char* MODEL_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\models\\one_epoch\\pspnet_mobilevitv2_100_one_epoch_1.pth.torchscript";
 
 	const char* IMAGES_PATH = "C:\\git\\darbas\\libtorch label segmentation\\libtorch label segmentation\\images_igel";
 
@@ -59,19 +60,15 @@ int main()
 	model.forward(inputs);
 	/// /// ///
 
-	torch::Tensor outputs = PredictMasks(&model, images); // predict masks
-	cout << outputs.sizes() << endl;
+	std::vector<std::vector<cv::Mat>> outputs = Predict(&model, images); // predict masks
 
-	//torch::save(outputs, "predictedMasks2.pt");
+	int imgI = 0;
+	cv::imshow("image", images[imgI]);
+	for (int i = 0; i < outputs[imgI].size(); ++i)
+	{
+		cv::imshow("predicted mask of class: " + std::to_string(i), outputs[imgI][i]);
+	}
 
-	std::vector<cv::Mat> masks = GetDrawableMasksFromTensor(outputs); // get masks as cv::Mat
-
-	
-	cv::Mat imageWithMask;
-	cv::cvtColor(images[1], images[1], cv::COLOR_BGR2BGRA);
-	cv::addWeighted(images[1], 0.9, masks[1], 0.25, 0, imageWithMask);
-
-	cv::imshow("img1", imageWithMask);
 	cv::waitKey(0);
 
 	return 0;
@@ -110,7 +107,6 @@ std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::
 	{
 		cv::cvtColor(image, image, colorConversion); // converting color
 		torch::Tensor imageTensor = torch::from_blob(image.data, { image.rows, image.cols, ch }, torch::kByte).to(deviceType); // converting to tensor
-		imageTensor = imageTensor.toType(torch::kFloat32);
 		imageTensor = imageTensor.toType(torch::kFloat32).div(255);
 		imageTensor = imageTensor.permute({ 2, 0, 1 });
 		imageTensor = imageTensor.unsqueeze(0);
@@ -121,26 +117,42 @@ std::vector<torch::Tensor> PreprocessImages(std::vector<cv::Mat> images, torch::
 	return imageTensors;
 }
 
-
-int Predict(std::vector<cv::Mat> images, torch::jit::script::Module model)
+std::vector<std::vector<cv::Mat>> Predict(torch::jit::script::Module* net, std::vector<cv::Mat> images)
 {
-	std::vector<torch::Tensor> imageTensors = PreprocessImages(images, at::kCUDA, 1);
+	std::vector<std::vector<cv::Mat>> predictions;
 
-	// Prepare the tensors for model input
+	// Image preprocessing
+	std::vector<torch::Tensor> imageTensors = PreprocessImages(images, at::kCUDA, 1); // images to tensor
 	torch::Tensor input = torch::cat(imageTensors, 0);
 	std::vector<torch::jit::IValue> inputs{ input };
 
-	// Forward pass
+	// Inference
 	auto t1 = std::chrono::high_resolution_clock::now();
-
-	torch::Tensor output = model.forward(inputs).toTensor().to(at::kCPU);
-
+	auto tPreds = net->forward(inputs).toTensor().to(torch::kCPU); // Forward pass
 	auto t2 = std::chrono::high_resolution_clock::now();
 	auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
-	//cout << "Inference duration: " << duration << "ms" << endl;
+	cout << "Inference duration: " << duration << "ms" << endl;
 
-	return duration;
-	// Process the output
+	// Output postprocessing
+	tPreds = tPreds.mul(255.0).toType(torch::kByte).to(torch::kCPU);
+	for (int i = 0; i < tPreds.size(0); ++i)
+	{
+		std::vector<cv::Mat> prediction;
+		for (int j = 0; j < tPreds.size(1); ++j)
+		{
+			cv::Mat classPrediction(tPreds.size(2), tPreds.size(3), CV_8UC1);
+			memcpy(classPrediction.data, tPreds[i][j].data_ptr(), tPreds.size(2) * tPreds.size(3) * sizeof(uchar));
+			prediction.push_back(classPrediction);
+		}
+
+		predictions.push_back(prediction);
+	}
+
+	auto t3 = std::chrono::high_resolution_clock::now();
+	duration = std::chrono::duration_cast<std::chrono::milliseconds>(t3 - t2).count();
+	cout << "Postprocessing duration: " << duration << "ms" << endl;
+
+	return predictions;
 }
 
 torch::Tensor PredictMasks(torch::jit::script::Module* net, std::vector<cv::Mat> images)

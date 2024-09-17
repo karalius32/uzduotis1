@@ -1,8 +1,8 @@
 {
 	"device": "cuda",
-    "lr": 0.0003,
-    "epochs": 300,
-    "batch_size": 64,
+    "lr": 0.0001,
+    "epochs": 1,
+    "batch_size": 32,
     "loss": "dice",
     
     "shuffle_dataset": false,
@@ -12,18 +12,18 @@
 
     "checkpoint_path": "checkpoints/",
     "checkpoint_name": "test_",
-    "save_checkpoint_in_between_n_epochs": 2,
+    "save_checkpoint_in_between_n_epochs": 1,
     "history_path": "histories/",
 
-    "model_type": "pspnet",
-    "encoder": "resnet18",
+    "model_type": "pan",
+    "encoder": "tu-mobilevitv2_100",
     "load_state_dict": false,
     "state_dict_path": "",
 
-    "train_images_path": "data_for_training_with_eval\\train\\images",
-    "train_masks_path": "data_for_training_with_eval\\train\\masks",
+    "train_images_path": "cache_train\\images",
+    "train_masks_path": "cache_train\\labels",
 
     "do_validation": true,
-    "val_images_path": "data_for_training_with_eval\\val\\images",
-    "val_masks_path": "data_for_training_with_eval\\val\\masks"
+    "val_images_path": "cache_val\\images",
+    "val_masks_path": "cache_val\\labels"
 }

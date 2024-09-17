@@ -1,0 +1,29 @@
+{
+	"device": "cuda",
+    "lr": 0.0001,
+    "epochs": 1,
+    "batch_size": 32,
+    "loss": "dice",
+    
+    "shuffle_dataset": false,
+    "image_size": 320,
+    "classes_n": 3,
+    "use_background": true,
+
+    "checkpoint_path": "checkpoints/one_epoch/",
+    "checkpoint_name": "pspnet_mobilevitv2_100_one_epoch_",
+    "save_checkpoint_in_between_n_epochs": 1,
+    "history_path": "histories\\one_epoch",
+
+    "model_type": "pspnet",
+    "encoder": "tu-mobilevitv2_100",
+    "load_state_dict": false,
+    "state_dict_path": "",
+
+    "train_images_path": "cache_full\\images",
+    "train_masks_path": "cache_full\\labels",
+
+    "do_validation": false,
+    "val_images_path": "",
+    "val_masks_path": ""
+}

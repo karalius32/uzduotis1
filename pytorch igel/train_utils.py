@@ -56,3 +56,23 @@ def evaluate_model(model, dataloader, loss_fn, device, class_n):
     avg_iou = total_iou / len(dataloader)
 
     return precisions, recalls, ious, dices, avg_loss, avg_iou
+
+
+class EarlyStopper:
+    def __init__(self, patience=20, eps=5e-4):
+        self.patience = patience
+        self.eps = eps
+        self.counter = 0
+        self.last_loss = float("inf")
+
+    def early_stop(self, training_loss):
+        print(f"\n{self.last_loss - training_loss}")
+        print(f"{self.last_loss - self.eps - training_loss}")
+        if self.last_loss - self.eps < training_loss:
+            self.counter += 1
+        else:
+            self.counter = 0
+        self.last_loss = training_loss
+        if self.counter >= self.patience:
+            return True
+        return False 

@@ -8,6 +8,8 @@ class SegmentationModel(nn.Module):
         model_type:
             - deeplabv3plus
             - pspnet
+            - manet
+            - pan
         encoder:
             - resnet18
             - timm-mobilenetv3_small_100
@@ -28,6 +30,11 @@ class SegmentationModel(nn.Module):
                 self.model = smp.DeepLabV3Plus(encoder_name=self.encoder, encoder_weights="imagenet", in_channels=1, classes=classes_n, activation="softmax")
             case "pspnet":
                 self.model = smp.PSPNet(encoder_name=self.encoder, encoder_weights="imagenet", in_channels=1, classes=classes_n, activation="softmax")
+            case "manet":
+                self.model = smp.MAnet(encoder_name=self.encoder, encoder_weights="imagenet", in_channels=1, classes=classes_n, activation="softmax")
+            case "pan":
+                self.model = smp.PAN(encoder_name=self.encoder, encoder_weights="imagenet", in_channels=1, classes=classes_n, activation="softmax")
+
             
 
     def forward(self, X):
