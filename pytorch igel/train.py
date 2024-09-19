@@ -76,7 +76,7 @@ def main(config):
         total_iou = 0
 
         for images, masks in train_dataloader:
-            images, masks = mosaicTransform(images, masks)
+            #images, masks = mosaicTransform(images, masks)
             images, masks = images.to(config['device']), masks.to(config['device']).squeeze(1)
             optimizer.zero_grad()
 

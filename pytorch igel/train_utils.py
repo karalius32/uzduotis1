@@ -114,10 +114,10 @@ class MosaicTransform(nn.Module):
             full_stack_image = torch.roll(full_stack_image, shifts=(shift_size_x, shift_size_y), dims=(0, 1))
             full_stack_mask = torch.roll(full_stack_mask, shifts=(shift_size_x, shift_size_y), dims=(0, 1))
 
-            images_mosaic.append(full_stack_image)
-            masks_mosaic.append(full_stack_mask)
+            images_mosaic.append(full_stack_image.unsqueeze(0))
+            masks_mosaic.append(full_stack_mask.unsqueeze(0))
 
-        return images_mosaic, masks_mosaic
+        return torch.cat(images_mosaic, axis=0), torch.cat(masks_mosaic, axis=0)
 
 
             
