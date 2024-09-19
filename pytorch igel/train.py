@@ -8,7 +8,7 @@ import time
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import model_loader
-from train_utils import evaluate_model, EarlyStopper
+from train_utils import evaluate_model, PlateuChecker, MosaicTransform
 import tiles
 import sys 
 import json
@@ -19,7 +19,7 @@ import utils
 
 
 def main(config):
-    # Defining transformations
+    # Defining transformations įdėt į config
     transform_A = A.Compose([
         #A.Resize(IMAGE_SIZE, IMAGE_SIZE),
         A.Rotate(limit=35, p=0.5),
@@ -27,7 +27,6 @@ def main(config):
         A.VerticalFlip(p=0.5),
         A.RandomBrightnessContrast(p=1),
         A.GaussianBlur(p=0.25),
-        A.RandomSizedCrop((config['image_size'] / 2, config['image_size'] / 2), (config['image_size'], config['image_size']), p=0.25),
         ToTensorV2()
     ])
     val_transform_A = A.Compose([
@@ -68,7 +67,8 @@ def main(config):
     # Training loop
     history = {"loss": [], "iou": [], "val_loss": [], "val_iou": []}
     scaler = torch.cuda.amp.GradScaler()
-    earlyStopper = EarlyStopper()
+    plateuChecker = PlateuChecker(stop_patience=config["early_stopping"], lr_decay_patience=config["lr_decay"])
+    mosaicTransform = MosaicTransform(config['image_size'])
     for epoch in range(config['epochs']):
         start = time.time()
         model.train()
@@ -76,6 +76,7 @@ def main(config):
         total_iou = 0
 
         for images, masks in train_dataloader:
+            images, masks = mosaicTransform(images, masks)
             images, masks = images.to(config['device']), masks.to(config['device']).squeeze(1)
             optimizer.zero_grad()
 
@@ -100,7 +101,11 @@ def main(config):
         avg_train_loss = running_loss / len(train_dataloader)
         avg_train_iou = total_iou / len(train_dataloader)
 
-        if earlyStopper.early_stop(avg_train_loss):
+        is_plateu = plateuChecker.check_plateu(avg_train_loss)
+        if is_plateu["decay"]:
+            for g in optimizer.param_groups:
+                g['lr'] /= 2
+        elif is_plateu["stop"]:
             break
 
         end = time.time()

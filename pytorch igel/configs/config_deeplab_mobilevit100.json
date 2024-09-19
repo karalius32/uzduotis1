@@ -4,6 +4,8 @@
     "epochs": 300,
     "batch_size": 24,
     "loss": "dice",
+    "lr_decay": 7,
+	"early_stopping": 15,
     
     "shuffle_dataset": false,
     "image_size": 320,

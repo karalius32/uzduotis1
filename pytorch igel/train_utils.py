@@ -1,4 +1,7 @@
 import torch
+from torch import nn
+import torchvision.transforms.functional as F
+import numpy as np
 
 
 def evaluate_model(model, dataloader, loss_fn, device, class_n):
@@ -58,21 +61,66 @@ def evaluate_model(model, dataloader, loss_fn, device, class_n):
     return precisions, recalls, ious, dices, avg_loss, avg_iou
 
 
-class EarlyStopper:
-    def __init__(self, patience=20, eps=5e-4):
-        self.patience = patience
+class PlateuChecker:
+    def __init__(self, stop_patience=15, lr_decay_patience=7, eps=1e-3):
+        self.stop_patience = stop_patience
+        self.decay_patience = lr_decay_patience
         self.eps = eps
-        self.counter = 0
+        self.stop_counter = 0
+        self.decay_counter = 0
         self.last_loss = float("inf")
 
-    def early_stop(self, training_loss):
+    def check_plateu(self, training_loss):
         print(f"\n{self.last_loss - training_loss}")
         print(f"{self.last_loss - self.eps - training_loss}")
+        print(self.stop_counter)
+        print(self.decay_counter)
         if self.last_loss - self.eps < training_loss:
-            self.counter += 1
+            self.stop_counter += 1
+            self.decay_counter += 1
         else:
-            self.counter = 0
+            self.stop_counter = 0
+            self.decay_counter = 0
         self.last_loss = training_loss
-        if self.counter >= self.patience:
-            return True
-        return False 
+        if self.stop_counter >= self.stop_patience:
+            return {"stop": True, "decay": False}
+        elif self.decay_counter >= self.decay_patience:
+            self.decay_counter = 0
+            return {"stop": False, "decay": True}
+        else: 
+            return {"stop": False, "decay": False}
+
+
+class MosaicTransform(nn.Module):
+    def __init__(self, size):
+        super().__init__()
+        self.size = size
+    
+    def forward(self, images_batch, masks_batch):
+        images_mosaic, masks_mosaic = [], []
+        n = len(images_batch) // 4
+
+        for i in range(n):
+            images, masks = images_batch[i*4:(i+1)*4], masks_batch[i*4:(i+1)*4]
+            images, masks = F.resize(images, (self.size // 2, self.size // 2)).squeeze(1), F.resize(masks, (self.size // 2, self.size // 2)).squeeze(1)
+            # Generate mosaic
+            h_stack_image0, h_stack_mask0 = torch.hstack((images[0], images[1])), torch.hstack((masks[0], masks[1]))
+            h_stack_image1, h_stack_mask1 = torch.hstack((images[2], images[3])), torch.hstack((masks[2], masks[3]))
+            full_stack_image, full_stack_mask = torch.vstack((h_stack_image0, h_stack_image1)), torch.vstack((h_stack_mask0, h_stack_mask1))
+            # roll
+            size_divided_by_3 = self.size // 3
+            shift_size_x = np.random.randint(-size_divided_by_3, size_divided_by_3)
+            shift_size_y = np.random.randint(-size_divided_by_3, size_divided_by_3)
+            full_stack_image = torch.roll(full_stack_image, shifts=(shift_size_x, shift_size_y), dims=(0, 1))
+            full_stack_mask = torch.roll(full_stack_mask, shifts=(shift_size_x, shift_size_y), dims=(0, 1))
+
+            images_mosaic.append(full_stack_image)
+            masks_mosaic.append(full_stack_mask)
+
+        return images_mosaic, masks_mosaic
+
+
+            
+
+
+            
