@@ -117,7 +117,7 @@ class MosaicTransform(nn.Module):
             images_mosaic.append(full_stack_image.unsqueeze(0))
             masks_mosaic.append(full_stack_mask.unsqueeze(0))
 
-        return torch.cat(images_mosaic, axis=0), torch.cat(masks_mosaic, axis=0)
+        return torch.cat(images_mosaic, axis=0).unsqueeze(1), torch.cat(masks_mosaic, axis=0)
 
 
             

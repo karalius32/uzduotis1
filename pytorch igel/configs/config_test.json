@@ -2,7 +2,7 @@
 	"device": "cuda",
     "lr": 0.00001,
     "epochs": 300,
-    "batch_size": 32,
+    "batch_size": 128,
     "loss": "dice",
     "lr_decay": 7,
 	"early_stopping": 15,
