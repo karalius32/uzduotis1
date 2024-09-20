@@ -1,5 +1,4 @@
 import keras
-from keras.layers import Input
 
 
 def Unet(shape=(224, 224, 1), num_of_classes=1, filters=8, depth=3, activation='relu', activation_args=None):
