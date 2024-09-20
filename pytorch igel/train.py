@@ -75,9 +75,9 @@ def main(config):
 
     # Training loop
     history = {"loss": [], "iou": [], "val_loss": [], "val_iou": []}
-    scaler = torch.cuda.amp.GradScaler()
+    scaler = torch.amp.GradScaler("cuda")
     plateuChecker = PlateuChecker(stop_patience=config["early_stopping"], lr_decay_patience=config["lr_decay"])
-    mosaicTransform = MosaicTransform(config['image_size'])
+    mosaicTransform = MosaicTransform(config['image_size'],, upscale=True)
     for epoch in range(config['epochs']):
         start = time.time()
         model.train()
