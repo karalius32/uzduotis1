@@ -19,28 +19,37 @@ import utils
 
 
 def main(config):
-    # Defining transformations įdėt į config
-    transform_A = A.Compose([
-        #A.Resize(IMAGE_SIZE, IMAGE_SIZE),
-        A.Rotate(limit=35, p=0.5),
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.5),
-        A.RandomBrightnessContrast(p=1),
-        A.GaussianBlur(p=0.25),
-        ToTensorV2()
-    ])
-    val_transform_A = A.Compose([
-        #A.Resize(IMAGE_SIZE, IMAGE_SIZE),
-        ToTensorV2()
-    ])
+    # Defining transformations
+    transforms_list = []
+    transforms_list.append(A.Rotate(config['augmentation']['rotate'], p=0.5))
+    if config['augmentation']['horizontal_flip']:
+        transforms_list.append(A.HorizontalFlip(p=0.5))
+    if config['augmentation']['vertical_flip']:
+        transforms_list.append(A.VerticalFlip(p=0.5))
+    if config['augmentation']['brightness_contrast']:
+        transforms_list.append(A.RandomBrightnessContrast(p=1))
+    if config['augmentation']['gaussian_blur']:
+        transforms_list.append(A.GaussianBlur(p=0.25))
+    transforms_list.append(ToTensorV2())
+
+    transform_A = A.Compose(transforms_list)
+    val_transform_A = A.Compose([ ToTensorV2() ])
 
     # Loading train dataset
-    train_dataset = CustomDataset(image_dir=config['train_images_path'], mask_dir=config['train_masks_path'], transform=transform_A)
+    tiles.generate_tile_cache(config['train_images_path'], config['train_masks_path'], config['train_cache_path'], 
+                              size=config['image_size'], zero_sampling=config['zero_sampling'])
+    train_dataset = CustomDataset(image_dir=os.path.join(config['train_cache_path'], "images"), 
+                                  mask_dir=os.path.join(config['train_cache_path'], "labels"), 
+                                  transform=transform_A)
     train_dataloader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=config['shuffle_dataset'])
 
     # Loading validation dataset
     if config['do_validation']:
-        val_dataset = CustomDataset(image_dir=config['val_images_path'], mask_dir=config['val_masks_path'], transform=val_transform_A)
+        tiles.generate_tile_cache(config['val_images_path'], config['val_masks_path'], config['val_cache_path'], 
+                                  size=config['image_size'], zero_sampling=config['zero_sampling'])
+        val_dataset = CustomDataset(image_dir=os.path.join(config['val_cache_path'], "images"), 
+                                    mask_dir=os.path.join(config['val_cache_path'], "labels"), 
+                                    transform=val_transform_A)
         val_dataloader = DataLoader(val_dataset, batch_size=config['batch_size'], shuffle=False)
 
     # Loading model
@@ -76,7 +85,8 @@ def main(config):
         total_iou = 0
 
         for images, masks in train_dataloader:
-            images, masks = mosaicTransform(images, masks)
+            if config['augmentation']['mosaic']:
+                images, masks = mosaicTransform(images, masks)
             images, masks = images.to(config['device']), masks.to(config['device']).squeeze(1)
             optimizer.zero_grad()
 

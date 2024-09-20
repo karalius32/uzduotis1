@@ -1,0 +1,43 @@
+{
+	"device": "cuda",
+    "lr": 0.0001,
+    "epochs": 1000,
+    "batch_size": 128,
+    "loss": "dice",
+    "lr_decay": 7,
+	"early_stopping": 15,
+    
+    "shuffle_dataset": false,
+    "image_size": 320,
+    "classes_n": 3,
+    "use_background": true,
+
+    "checkpoint_path": "checkpoints/",
+    "checkpoint_name": "test_early_stopping_",
+    "save_checkpoint_in_between_n_epochs": 10,
+    "history_path": "histories/",
+
+    "model_type": "pspnet",
+    "encoder": "tu-mobilevitv2_100",
+    "load_state_dict": false,
+    "state_dict_path": "",
+
+    "train_images_path": "cache_train\\images",
+    "train_masks_path": "cache_train\\labels",
+    "train_cache_path": "cache_train",
+    "zero_sampling": 0,
+
+    "do_validation": true,
+    "val_images_path": "cache_val\\images",
+    "val_masks_path": "cache_val\\labels",
+    "val_cache_path": "cache_val", 
+
+    "augmentation": {
+        "rotate": 35,
+        "horizontal_flip": true,
+        "vertical_flip": true,
+        "brightness_contrast": true,
+        "gaussian_blur": true,
+        "mosaic": true
+    }
+}

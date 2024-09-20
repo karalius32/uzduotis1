@@ -68,6 +68,7 @@ class PlateuChecker:
         self.eps = eps
         self.stop_counter = 0
         self.decay_counter = 0
+        self.C = 0
         self.last_loss = float("inf")
 
     def check_plateu(self, training_loss):
@@ -75,6 +76,7 @@ class PlateuChecker:
         print(f"{self.last_loss - self.eps - training_loss}")
         print(self.stop_counter)
         print(self.decay_counter)
+        print(self.C)
         if self.last_loss - self.eps < training_loss:
             self.stop_counter += 1
             self.decay_counter += 1
@@ -86,6 +88,7 @@ class PlateuChecker:
             return {"stop": True, "decay": False}
         elif self.decay_counter >= self.decay_patience:
             self.decay_counter = 0
+            self.C += 1
             return {"stop": False, "decay": True}
         else: 
             return {"stop": False, "decay": False}
