@@ -1,0 +1,43 @@
+{
+	"device": "cuda",
+    "lr": 0.0001,
+    "epochs": 300,
+    "batch_size": 128,
+    "loss": "dice",
+    "lr_decay": 100,
+	"early_stopping": 100,
+    
+    "shuffle_dataset": false,
+    "image_size": 320,
+    "classes_n": 3,
+    "use_background": true,
+
+    "checkpoint_path": "checkpoints/test_custom",
+    "checkpoint_name": "test_custom_",
+    "save_checkpoint_in_between_n_epochs": 10,
+    "history_path": "histories/test_custom",
+
+    "model_type": "custom",
+    "encoder": "none",
+    "load_state_dict": false,
+    "state_dict_path": "",
+
+    "train_images_path": "cache_train\\images",
+    "train_masks_path": "cache_train\\labels",
+    "train_cache_path": "cache_train",
+    "zero_sampling": 0,
+
+    "do_validation": true,
+    "val_images_path": "cache_val\\images",
+    "val_masks_path": "cache_val\\labels",
+    "val_cache_path": "cache_val", 
+
+    "augmentation": {
+        "rotate": 35,
+        "horizontal_flip": true,
+        "vertical_flip": true,
+        "brightness_contrast": true,
+        "gaussian_blur": true,
+        "mosaic": true
+    }
+}

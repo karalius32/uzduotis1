@@ -1,5 +1,6 @@
 import segmentation_models_pytorch as smp
 from torch import nn
+from model_torch import Model as CustomModel
 
 
 class SegmentationModel(nn.Module):
@@ -10,6 +11,7 @@ class SegmentationModel(nn.Module):
             - pspnet
             - manet
             - pan
+            - custom
         encoder:
             - resnet18
             - timm-mobilenetv3_small_100
@@ -34,7 +36,8 @@ class SegmentationModel(nn.Module):
                 self.model = smp.MAnet(encoder_name=self.encoder, encoder_weights="imagenet", in_channels=1, classes=classes_n, activation="softmax")
             case "pan":
                 self.model = smp.PAN(encoder_name=self.encoder, encoder_weights="imagenet", in_channels=1, classes=classes_n, activation="softmax")
-
+            case "custom":
+                self.model = CustomModel(in_channels=1, num_of_classes=classes_n)
             
 
     def forward(self, X):
